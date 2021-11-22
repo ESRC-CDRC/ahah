@@ -1,0 +1,154 @@
+schema: '2.0'
+stages:
+  osm_graph:
+    cmd: python -m ahah.osm_graph
+    outs:
+    - path: data/processed/osm/edges.parquet
+      md5: 22a0069aa8860feb28d64b9c3b8c737f
+      size: 689830562
+    - path: data/processed/osm/nodes.parquet
+      md5: a8564d094cd005710294bb77c69fe86d
+      size: 148667002
+    - path: data/raw/osm_pbf/edges.csv
+      md5: 85592f35778f83b095cb465147371473
+      size: 1528410107
+    - path: data/raw/osm_pbf/great-britain-latest.osm.pbf
+      md5: 55e1d01607158cb323555f1623266934
+      size: 1303152899
+    - path: data/raw/osm_pbf/nodes.csv
+      md5: 6d7e9124b4ecfa3eb4e815cd20544427
+      size: 239634481
+  get_nhs:
+    cmd: python -m ahah.get_nhs
+    outs:
+    - path: data/raw/nhs/edispensary.csv
+      md5: 6e2b72a31c177022b0252be882b01eb3
+      size: 3598042
+    - path: data/raw/nhs/egdpprac.csv
+      md5: 6efc3b1f3aefcebd6e470f5f7662e4a8
+      size: 1841622
+    - path: data/raw/nhs/epraccur.csv
+      md5: d051aef5ecbf685d217b10ea77cbac38
+      size: 3230372
+    - path: data/raw/nhs/ets.csv
+      md5: 6016b756e117cb9c2870bc92102847d3
+      size: 5874586
+    - path: data/raw/nhs/scotland/dentists.csv
+      md5: 4f02f592ca21a916a55b40e4f60acd2c
+      size: 124458
+    - path: data/raw/nhs/scotland/gpp.csv
+      md5: 4e1bc2658cd6bdce116b21f13ac8a0ee
+      size: 167311
+    - path: data/raw/nhs/scotland/hospitals.csv
+      md5: ff61aae99ccdda689b6929d01a6180ab
+      size: 38356
+    - path: data/raw/nhs/scotland/pharmacies.csv
+      md5: bda581caf6613b94585caa26ec525930
+      size: 156427
+  process_routing:
+    cmd: python -m ahah.process_routing
+    deps:
+    - path: data/processed/osm/nodes.parquet
+      md5: 4a09b0e0e7d96f0edc6585d3ccc84690
+      size: 63157143
+    - path: data/raw/bluespace
+      md5: 47aa3cd33c5f77473514cdaf7cecec2d.dir
+      size: 2056885894
+      nfiles: 1076
+    - path: data/raw/greenspace/access.shp
+      md5: 217231f622e8690d1ea1cc3aec341c6b
+      size: 12760320
+    - path: data/raw/nhs/edispensary.csv
+      md5: 6e2b72a31c177022b0252be882b01eb3
+      size: 3598042
+    - path: data/raw/nhs/egdpprac.csv
+      md5: 6efc3b1f3aefcebd6e470f5f7662e4a8
+      size: 1841622
+    - path: data/raw/nhs/epraccur.csv
+      md5: d051aef5ecbf685d217b10ea77cbac38
+      size: 3230372
+    - path: data/raw/nhs/ets.csv
+      md5: 6016b756e117cb9c2870bc92102847d3
+      size: 5874586
+    - path: data/raw/nhs/scotland/dentists.csv
+      md5: 4f02f592ca21a916a55b40e4f60acd2c
+      size: 124458
+    - path: data/raw/nhs/scotland/gpp.csv
+      md5: 4e1bc2658cd6bdce116b21f13ac8a0ee
+      size: 167311
+    - path: data/raw/nhs/scotland/hospitals.csv
+      md5: ff61aae99ccdda689b6929d01a6180ab
+      size: 38356
+    - path: data/raw/nhs/scotland/pharmacies.csv
+      md5: bda581caf6613b94585caa26ec525930
+      size: 156427
+    - path: data/raw/onspd/postcodes.csv
+      md5: 64cbe97288ce9f9558e1cae3c2f96dba
+      size: 1340976289
+    outs:
+    - path: data/processed/bluespace.parquet
+      md5: 83525a37f1195cd5cfc6bd248706795e
+      size: 21673613
+    - path: data/processed/dentists.parquet
+      md5: fb5cbb54fad193243540d47c8e371df9
+      size: 259510
+    - path: data/processed/gpp.parquet
+      md5: da9b193fd0c06fc97d5f6b470662c706
+      size: 294340
+    - path: data/processed/greenspace.parquet
+      md5: 00669245070b2eb1880e537eec380bb4
+      size: 6158769
+    - path: data/processed/hospitals.parquet
+      md5: bb5d7a0938eaac9d1497952873c9fe1a
+      size: 520043
+    - path: data/processed/pharmacies.parquet
+      md5: c1f9e16854a1a1d0492ee13b09fb4fb4
+      size: 285997
+    - path: data/processed/postcodes.parquet
+      md5: ae439eb42d9522f11b3f23097e3bac16
+      size: 29843651
+  process_air:
+    cmd: python -m ahah.process_air
+    deps:
+    - path: data/raw/air/mapno22019.csv
+      md5: f128a8d4b0092a6a761e2e4816996a89
+      size: 8660103
+    - path: data/raw/air/mappm102019g.csv
+      md5: 128ec888423a2a1d6e5cc15a56a915e6
+      size: 8660504
+    - path: data/raw/air/mapso22019.csv
+      md5: e86ae1a958288024c62d470e892761e1
+      size: 8869828
+    - path: data/raw/lsoa/england_lsoa_2011.shp
+      md5: fd2766d0c0da64b8ff359704a396b057
+      size: 497942736
+    outs:
+    - path: data/out/lsoa_air.csv
+      md5: f6d20aa5a25efead507f49454dd61e29
+      size: 1944656
+  greenspace_passive:
+    cmd: python -m ahah.greenspace_passive
+    deps:
+    - path: data/processed/postcodes.parquet
+      md5: ae046e203773aad625af5df8a0176b17
+      size: 31077227
+    - path: data/raw/greenspace/site.shp
+      md5: bfc5f161dbfa3c85f331789eb29fa331
+      size: 83836752
+    outs:
+    - path: data/out/greenspace_passive.csv
+      md5: c96400b25a802eb9c37a0c535c72c0fb
+      size: 115772328
+  os_highways:
+    cmd: python -m ahah.os_highways
+    deps:
+    - path: data/raw/os_highways/Highways_Data_March19.gdb.zip
+      md5: 64526f270e1778406689166840da0f1e
+      size: 2320550286
+    outs:
+    - path: data/processed/osm/edges.parquet
+      md5: 304cfba0e6dbe9148196c38c9aad8301
+      size: 133992621
+    - path: data/processed/osm/nodes.parquet
+      md5: 4a09b0e0e7d96f0edc6585d3ccc84690
+      size: 63157143

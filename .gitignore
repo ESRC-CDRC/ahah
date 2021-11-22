@@ -1,0 +1,15 @@
+data
+temp
+notebooks
+covid_access
+data_story.Rmd
+debug.log
+
+__pycache__
+
+.mypy_cache
+.venv
+.vim
+typings
+.pytest_cache
+.envrc
