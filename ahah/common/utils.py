@@ -59,10 +59,10 @@ class Config:
         "hospitals": "cbd1802e-0e04-4282-88eb-d7bdcfb120f0/resource"
         "/c698f450-eeed-41a0-88f7-c1e40a568acc/download"
         "/current-hospital_flagged20210506.csv",
-        # Accident & Emergency Sites 9th April, 2020
-        "ae": "a877470a-06a9-492f-b9e8-992f758894d0/resource"
-        "/1a4e3f48-3d9b-4769-80e9-3ef6d27852fe/download"
-        "/hospital_site_list.csv",
+        # # Accident & Emergency Sites 9th April, 2020
+        # "ae": "a877470a-06a9-492f-b9e8-992f758894d0/resource"
+        # "/1a4e3f48-3d9b-4769-80e9-3ef6d27852fe/download"
+        # "/hospital_site_list.csv",
         # Dispenser Details October 2020
         "pharmacies": "a30fde16-1226-49b3-b13d-eb90e39c2058/resource"
         "/d08bc753-c6dc-4dbd-8b37-ef439d3a7428/download"
