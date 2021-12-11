@@ -5,7 +5,10 @@
 **GPU accelerated road network routing between postcodes and POIs.**
 
 <a href="https://www.python.org"><img alt="Python" src="https://img.shields.io/badge/python%20-%2314354C.svg?&style=for-the-badge&logo=python&logoColor=white"/></a>
-<a href="https://rapids.ai/"><img alt="RAPIDS" src="https://img.shields.io/badge/-rapids.ai-blueviolet?style=for-the-badge"></a>
+<a href="https://rapids.ai/"><img alt="RAPIDS" src="https://img.shields.io/badge/-rapids.ai-blueviolet?style=for-the-badge"></a>  
+<a href="https://dvc.org/"><img alt="DVC" src="https://img.shields.io/badge/data-DVC-lightblue?style=flat-square"></a>
+<a href="https://black.readthedocs.io/en/stable/"><img alt="Code style: black" src="https://img.shields.io/badge/style-black-000000.svg?style=flat-square"></a>
+
 
 </div>
 
