@@ -22,17 +22,17 @@ stages:
     cmd: python -m ahah.get_nhs
     outs:
     - path: data/raw/nhs/edispensary.csv
-      md5: 6e2b72a31c177022b0252be882b01eb3
-      size: 3598042
+      md5: 08b0917beed22ab5d22c4ae21d0d7b8e
+      size: 3614340
     - path: data/raw/nhs/egdpprac.csv
-      md5: 6efc3b1f3aefcebd6e470f5f7662e4a8
-      size: 1841622
+      md5: 4dc17037a5f685d23bb84cd52235f486
+      size: 1853765
     - path: data/raw/nhs/epraccur.csv
-      md5: d051aef5ecbf685d217b10ea77cbac38
-      size: 3230372
+      md5: 56822f6bf35907c4775be4f343072f1f
+      size: 3245662
     - path: data/raw/nhs/ets.csv
-      md5: 6016b756e117cb9c2870bc92102847d3
-      size: 5874586
+      md5: fe02d5c044ca21250894279ec493c0c4
+      size: 5961248
     - path: data/raw/nhs/scotland/dentists.csv
       md5: 4f02f592ca21a916a55b40e4f60acd2c
       size: 124458
@@ -49,8 +49,8 @@ stages:
     cmd: python -m ahah.process_routing
     deps:
     - path: data/processed/osm/nodes.parquet
-      md5: 4a09b0e0e7d96f0edc6585d3ccc84690
-      size: 63157143
+      md5: 9e41141ee596bb53d2b20adab3853c96
+      size: 54677314
     - path: data/raw/bluespace
       md5: 47aa3cd33c5f77473514cdaf7cecec2d.dir
       size: 2056885894
@@ -59,17 +59,17 @@ stages:
       md5: 217231f622e8690d1ea1cc3aec341c6b
       size: 12760320
     - path: data/raw/nhs/edispensary.csv
-      md5: 6e2b72a31c177022b0252be882b01eb3
-      size: 3598042
+      md5: 08b0917beed22ab5d22c4ae21d0d7b8e
+      size: 3614340
     - path: data/raw/nhs/egdpprac.csv
-      md5: 6efc3b1f3aefcebd6e470f5f7662e4a8
-      size: 1841622
+      md5: 4dc17037a5f685d23bb84cd52235f486
+      size: 1853765
     - path: data/raw/nhs/epraccur.csv
-      md5: d051aef5ecbf685d217b10ea77cbac38
-      size: 3230372
+      md5: 56822f6bf35907c4775be4f343072f1f
+      size: 3245662
     - path: data/raw/nhs/ets.csv
-      md5: 6016b756e117cb9c2870bc92102847d3
-      size: 5874586
+      md5: fe02d5c044ca21250894279ec493c0c4
+      size: 5961248
     - path: data/raw/nhs/scotland/dentists.csv
       md5: 4f02f592ca21a916a55b40e4f60acd2c
       size: 124458
@@ -87,26 +87,26 @@ stages:
       size: 1340976289
     outs:
     - path: data/processed/bluespace.parquet
-      md5: 83525a37f1195cd5cfc6bd248706795e
-      size: 21673613
+      md5: 95485b6b4cb794dee76e4722b0e07aca
+      size: 33911823
     - path: data/processed/dentists.parquet
-      md5: fb5cbb54fad193243540d47c8e371df9
-      size: 259510
+      md5: 8da6dcaaf623b5ae543500f156579f90
+      size: 28061452
     - path: data/processed/gpp.parquet
-      md5: da9b193fd0c06fc97d5f6b470662c706
-      size: 294340
+      md5: 98e29d3a83e1abf5628fbb8e6392e5d7
+      size: 28049365
     - path: data/processed/greenspace.parquet
-      md5: 00669245070b2eb1880e537eec380bb4
-      size: 6158769
+      md5: 42989c63ea1bb904c3aeef75e9dbcb1b
+      size: 21336654
     - path: data/processed/hospitals.parquet
-      md5: bb5d7a0938eaac9d1497952873c9fe1a
-      size: 520043
+      md5: 52e7281bde034fa85bab1d01267bb8ca
+      size: 27385468
     - path: data/processed/pharmacies.parquet
-      md5: c1f9e16854a1a1d0492ee13b09fb4fb4
-      size: 285997
+      md5: 6a6e6fe2750121e266fb2ade95e2faa8
+      size: 30974281
     - path: data/processed/postcodes.parquet
-      md5: ae439eb42d9522f11b3f23097e3bac16
-      size: 29843651
+      md5: 8f9e9568e9da41722c1921ca63adbfdb
+      size: 25876092
   process_air:
     cmd: python -m ahah.process_air
     deps:
@@ -124,8 +124,8 @@ stages:
       size: 497942736
     outs:
     - path: data/out/lsoa_air.csv
-      md5: f6d20aa5a25efead507f49454dd61e29
-      size: 1944656
+      md5: fcaa940bf0f6e9a94baab6483c9739b6
+      size: 1890773
   greenspace_passive:
     cmd: python -m ahah.greenspace_passive
     deps:
@@ -147,8 +147,8 @@ stages:
       size: 2320550286
     outs:
     - path: data/processed/osm/edges.parquet
-      md5: 304cfba0e6dbe9148196c38c9aad8301
-      size: 133992621
+      md5: a594787ddfc9d9e9f8ce74f00b0e0939
+      size: 103595211
     - path: data/processed/osm/nodes.parquet
-      md5: 4a09b0e0e7d96f0edc6585d3ccc84690
-      size: 63157143
+      md5: 9e41141ee596bb53d2b20adab3853c96
+      size: 54677314
