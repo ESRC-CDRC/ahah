@@ -41,72 +41,72 @@ def nearest_nodes(df: cudf.DataFrame, nodes: cudf.DataFrame) -> cudf.DataFrame:
     return df
 
 
-def get_buffers(
-    poi: cudf.DataFrame,
-    postcodes: cudf.DataFrame,
-    k: int,
-) -> cudf.DataFrame:
-    """
-    Estimate buffer sizes required to capture each necessary road node
+# def get_buffers(
+#     poi: cudf.DataFrame,
+#     postcodes: cudf.DataFrame,
+#     k: int,
+# ) -> cudf.DataFrame:
+#     """
+#     Estimate buffer sizes required to capture each necessary road node
 
-    Calculates k nearest neighbours for each POI to each road node. Finds
-    each node that is considered a neighbour to a poi `k*len(poi)`. Buffers
-    are taken as the distance to the further neighbour and all nodes associated with
-    each POI are saved.
+#     Calculates k nearest neighbours for each POI to each road node. Finds
+#     each node that is considered a neighbour to a poi `k*len(poi)`. Buffers
+#     are taken as the distance to the further neighbour and all nodes associated with
+#     each POI are saved.
 
-    Parameters
-    ----------
-    poi : cudf.DataFrame
-        Dataframe of all POIs
-    postcodes : cudf.DataFrame
-        Dataframe of postcodes
-    k : int
-        Number of neigbours to use
+#     Parameters
+#     ----------
+#     poi : cudf.DataFrame
+#         Dataframe of all POIs
+#     postcodes : cudf.DataFrame
+#         Dataframe of postcodes
+#     k : int
+#         Number of neigbours to use
 
-    Returns
-    -------
-    cudf.DataFrame:
-        POI dataframe including buffer and column with list of nodes
-    """
-    nbrs = NearestNeighbors(n_neighbors=k, output_type="cudf", algorithm="brute").fit(
-        poi[["easting", "northing"]]
-    )
-    distances, indices = nbrs.kneighbors(postcodes[["easting", "northing"]])
+#     Returns
+#     -------
+#     cudf.DataFrame:
+#         POI dataframe including buffer and column with list of nodes
+#     """
+#     nbrs = NearestNeighbors(n_neighbors=k, output_type="cudf", algorithm="brute").fit(
+#         poi[["easting", "northing"]]
+#     )
+#     distances, indices = nbrs.kneighbors(postcodes[["easting", "northing"]])
 
-    poi_nn = (
-        postcodes.join(indices)[["node_id"] + indices.columns.tolist()]
-        .set_index("node_id")  # type:ignore
-        .stack()
-        .rename("poi_idx")
-        .reset_index()
-        .rename(columns={"level_0": "pc_node"})
-        .drop("level_1", axis=1)
-        .groupby("poi_idx")
-        .agg(list)
-        .join(poi, how="right")
-    )
+#     poi_nn = (
+#         postcodes.join(indices)[["node_id"] + indices.columns.tolist()]
+#         .set_index("node_id")  # type:ignore
+#         .stack()
+#         .rename("poi_idx")
+#         .reset_index()
+#         .rename(columns={"level_0": "pc_node"})
+#         .drop("level_1", axis=1)
+#         .groupby("poi_idx")
+#         .agg(list)
+#         .join(poi, how="right")
+#     )
 
-    # retain only unique postcode ids
-    poi_nn["pc_node"] = (
-        poi_nn["pc_node"]
-        .to_pandas()
-        .apply(lambda row: list(set(row)) if row is not None else row)
-    )
+#     # retain only unique postcode ids
+#     poi_nn["pc_node"] = (
+#         poi_nn["pc_node"]
+#         .to_pandas()
+#         .apply(lambda row: list(set(row)) if row is not None else row)
+#     )
 
-    distances = distances.stack().rename("dist").reset_index().drop("level_1", axis=1)
-    indices = indices.stack().rename("ind").reset_index().drop("level_1", axis=1)
+#     distances = distances.stack().rename("dist").reset_index().drop("level_1", axis=1)
+#     indices = indices.stack().rename("ind").reset_index().drop("level_1", axis=1)
 
-    poi_nodes = (
-        poi_nn[["node_id"]]
-        .iloc[indices["ind"].values]["node_id"]
-        .reset_index(drop=True)
-    )
-    buffers = cudf.DataFrame({"node_id": poi_nodes, "buffer": distances["dist"].values})
-    buffers = buffers.sort_values("buffer", ascending=False).drop_duplicates("node_id")
-    buffers["buffer"] = buffers["buffer"].astype("int")
+#     poi_nodes = (
+#         poi_nn[["node_id"]]
+#         .iloc[indices["ind"].values]["node_id"]
+#         .reset_index(drop=True)
+#     )
+#     buffers = cudf.DataFrame({"node_id": poi_nodes, "buffer": distances["dist"].values})
+#     buffers = buffers.sort_values("buffer", ascending=False).drop_duplicates("node_id")
+#     buffers["buffer"] = buffers["buffer"].astype("int")
 
-    # this will drop rows that did not appear in the KNN i.e unneeded poi
-    return poi_nn.merge(buffers, on="node_id", how="left").dropna()
+#     # this will drop rows that did not appear in the KNN i.e unneeded poi
+#     return poi_nn.merge(buffers, on="node_id", how="left").dropna()
 
 
 if __name__ == "__main__":
@@ -164,9 +164,7 @@ if __name__ == "__main__":
     for poi, df in poi_list.items():
         logger.debug(f"Finding nearest node to {poi}...")
         df = nearest_nodes(df.reset_index(drop=True), nodes=nodes)
-        logger.debug(f"Getting buffers:{poi}...")
-        df = get_buffers(poi=df, postcodes=postcodes, k=10)
         logger.debug(f"Saving {poi}:{Config.PROCESSED_DATA}...")
-        df[["node_id", "easting", "northing", "buffer", "pc_node"]].to_parquet(
+        df[["node_id", "easting", "northing"]].to_parquet(
             Config.PROCESSED_DATA / f"{poi}.parquet"
         )
