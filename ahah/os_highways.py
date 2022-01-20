@@ -40,12 +40,28 @@ def process_edges(edges: pd.DataFrame) -> pd.DataFrame:
     edges.loc[idx[["Track", "Layby"], :], "speed_estimate"] = 5
     edges.loc[edges["speed_estimate"] == -1, "speed_estimate"] = 10
 
+    # Unsure what to keep
+    # edges = edges.drop(
+    #     index="Traffic Island Link At Junction", level=0, errors="ignore"
+    # )
+    # edges = edges.drop(index="Traffic Island Link", level=0, errors="ignore")
+    # edges = edges.drop(index="Enclosed Traffic Area", level=0, errors="ignore")
+    # edges = edges.drop(index="Layby", level=0, errors="ignore")
+    # edges = edges.drop(index="Track", level=0, errors="ignore")
+    # edges = edges.drop(index="Guided Busway", level=0, errors="ignore")
+    # edges = edges.drop(index="Restricted Local Access Road", level=1, errors="ignore")
+    # edges = edges.drop(
+    #     index="Restricted Secondary Access Road", level=1, errors="ignore"
+    # )
+
     edges = edges.assign(
         speed_estimate=edges["speed_estimate"] * 1.609344,
         time_weighted=(edges["length"].astype(float) / 1000)
         / edges["speed_estimate"]
         * 60,
     )
+    edges.columns
+    edges.roadClassification
 
     return edges[["startNode", "endNode", "time_weighted", "length"]]
 
@@ -88,7 +104,10 @@ if __name__ == "__main__":
     logger.debug("Nodes processed.")
 
     nodes["node_id"] = nodes["TOID"]
-
+    nodes = nodes[
+        (nodes["node_id"].isin(edges["startNode"]))
+        | (nodes["node_id"].isin(edges["endNode"]))
+    ]
     nodes["node_id"] = nodes["node_id"].astype("category")
     node_ids = dict(enumerate(nodes["node_id"].cat.categories.to_pandas()))
     node_ids = {v: k for k, v in node_ids.items()}
@@ -99,5 +118,7 @@ if __name__ == "__main__":
 
     nodes[Config.NODE_COLS].to_parquet(Config.OS_GRAPH / "nodes.parquet", index=False)
     logger.debug(f"Nodes saved to {Config.OS_GRAPH / 'nodes.parquet'}")
-    edges.reset_index()[Config.EDGE_COLS].to_parquet(Config.OS_GRAPH / "edges.parquet", index=False)
+    edges.reset_index()[Config.EDGE_COLS].to_parquet(
+        Config.OS_GRAPH / "edges.parquet", index=False
+    )
     logger.debug(f"Edges saved to {Config.OS_GRAPH / 'edges.parquet'}")
