@@ -9,7 +9,7 @@ if __name__ == "__main__":
     postcodes = cudf.read_parquet(Config.PROCESSED_DATA / "postcodes.parquet")
 
     gpp = pd.read_parquet(Config.PROCESSED_DATA / "gpp.parquet")
-    OUT_FILE = Config.OUT_DATA / "distances_gpp_nobuffer.csv"
+    OUT_FILE = Config.OUT_DATA / "NO_BUFFER_distances_gpp.csv"
 
     if not OUT_FILE.exists():
         routing = Routing(

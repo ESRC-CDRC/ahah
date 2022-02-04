@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import time
+from collections import namedtuple
+
 import cudf
 import cugraph
 import cuspatial
-import dask.dataframe as dd
 import numpy as np
 import pandas as pd
-import time
+from rich.progress import track
+
 from ahah.common.logger import logger
 from ahah.common.utils import Config
-from rich.progress import track
 
 
 class Routing:
@@ -65,16 +67,14 @@ class Routing:
                 edge_attr=self.weights,
             )
 
-        self.log_file = Config.OUT_DATA / "logs" / f"{self.name}_intermediate.h5"
+        self.log_file = Config.OUT_DATA / "logs" / f"{self.name}_intermediate.csv"
 
         if self.log_file.exists():
             logger.warning("Resuming from a previous run.")
-            # -1 in case program stopped while saving to hdf
-            self.idx = (
-                dd.read_hdf(self.log_file, key=self.name)["idx"].max().compute() - 1
-            )
+            self.idx = cudf.read_csv(self.log_file)["idx"].max() - 1
             logger.warning(
-                f"Run resumed at {self.idx / len(self.pois) * 100:.2f}% ({self.idx} / {len(self.pois)})"
+                f"Run resumed at {self.idx / len(self.pois) * 100:.2f}%"
+                f" ({self.idx} / {len(self.pois)})"
             )
         else:
             self.idx = 0
@@ -98,23 +98,6 @@ class Routing:
         logger.debug(
             f"Routing complete for {self.name} in {tdiff / 60:.2f} minutes,"
             " finding minimum distances."
-        )
-        t1 = time.time()
-        self.distances = (
-            dd.read_hdf(
-                self.log_file,
-                key=f"{self.name}",
-                columns=["vertex", "distance"],
-            )
-            .map_partitions(cudf.from_pandas)
-            .groupby("vertex")
-            .min()
-            .compute()
-        )
-        t2 = time.time()
-        tdiff = t2 - t1
-        logger.debug(
-            f"Found minimum distances for {self.name} in {tdiff / 60:.2f} minutes."
         )
         self.log_file.unlink()
 
@@ -160,7 +143,7 @@ class Routing:
         )
         return sub_graph
 
-    def get_shortest_dists(self, poi):
+    def get_shortest_dists(self, poi: namedtuple) -> None:
         """
         Use `cugraph.sssp` to calculate shortest paths from POI to postcodes
 
@@ -183,13 +166,18 @@ class Routing:
 
         self.idx += 1
         pc_dist["idx"] = self.idx
-        pc_dist.to_hdf(
-            self.log_file,
-            key=self.name,
-            format="table",
-            append=True,
-            index=False,
+
+        if self.log_file.exists():
+            self.distances = cudf.read_csv(self.log_file).append(pc_dist)
+        else:
+            self.distances = pc_dist[["vertex", "distance", "idx"]]
+
+        self.distances = (
+            self.distances.sort_values("distance")
+            .drop_duplicates("vertex")
+            .reset_index()[["vertex", "distance", "idx"]]
         )
+        self.distances.to_csv(self.log_file, index=False)
 
 
 if __name__ == "__main__":
@@ -220,9 +208,11 @@ if __name__ == "__main__":
             )
             routing.fit()
 
-            distances = routing.distances.join(
-                postcodes.set_index("node_id")
-            ).reset_index()
+            distances = (
+                routing.distances.set_index("vertex")
+                .join(postcodes.set_index("node_id"))
+                .reset_index()
+            )
 
             logger.debug(f"Saving distances for {poi} to {OUT_FILE}.")
             distances[["postcode", "distance"]].to_csv(OUT_FILE, index=False)

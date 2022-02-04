@@ -1,11 +1,16 @@
+import os
+from pathlib import Path
+from typing import List, Union
+
 import cudf
 import geopandas as gpd
-import itertools
+import numpy as np
 import pandas as pd
+from shapely.geometry import LineString, Polygon
+from shapely.geometry.linestring import LineString
+from tqdm import tqdm
+
 from ahah.common.logger import logger
-from pathlib import Path
-from shapely.geometry import mapping
-from typing import List, Union
 
 DataFrame = Union[pd.DataFrame, cudf.DataFrame]
 
@@ -13,7 +18,7 @@ DataFrame = Union[pd.DataFrame, cudf.DataFrame]
 class Config:
     """Misc constants required throughout"""
 
-    DATA_PATH = Path("data/")
+    DATA_PATH = Path(os.environ["PROJECT_ROOT"]) / "data"
     RAW_DATA = DATA_PATH / "raw"
     PROCESSED_DATA = DATA_PATH / "processed"
     OUT_DATA = DATA_PATH / "out"
@@ -59,10 +64,6 @@ class Config:
         "hospitals": "cbd1802e-0e04-4282-88eb-d7bdcfb120f0/resource"
         "/c698f450-eeed-41a0-88f7-c1e40a568acc/download"
         "/current-hospital_flagged20210506.csv",
-        # # Accident & Emergency Sites 9th April, 2020
-        # "ae": "a877470a-06a9-492f-b9e8-992f758894d0/resource"
-        # "/1a4e3f48-3d9b-4769-80e9-3ef6d27852fe/download"
-        # "/hospital_site_list.csv",
         # Dispenser Details October 2020
         "pharmacies": "a30fde16-1226-49b3-b13d-eb90e39c2058/resource"
         "/d08bc753-c6dc-4dbd-8b37-ef439d3a7428/download"
@@ -211,7 +212,7 @@ def clean_dentists(
         .pipe(find_partial_pc, postcodes)
     )
 
-    return edent.append(sdent)
+    return edent.append(sdent).reset_index()
 
 
 def clean_gpp(
@@ -240,7 +241,7 @@ def clean_gpp(
         .pipe(find_partial_pc, postcodes)
     )
 
-    return egpp.append(sgpp)
+    return egpp.append(sgpp).reset_index()
 
 
 def clean_pharmacies(
@@ -268,7 +269,7 @@ def clean_pharmacies(
         .join(postcodes)
         .pipe(find_partial_pc, postcodes)
     )
-    return epharm.append(spharm)
+    return epharm.append(spharm).reset_index()
 
 
 def clean_hospitals(
@@ -293,7 +294,7 @@ def clean_hospitals(
         .join(postcodes)
         .pipe(find_partial_pc, postcodes)
     )
-    return ehos.append(shos)
+    return ehos.append(shos).reset_index()
 
 
 def clean_air(path: Path, col: "str"):
@@ -316,33 +317,72 @@ def clean_greenspace_access(path: Path) -> cudf.DataFrame:
     ]
 
 
-def clean_bluespace(dir: Path) -> cudf.DataFrame:
+def single_parametric_interpolate(obj_x_loc, obj_y_loc, num_pts: int):
+    # https://stackoverflow.com/questions/42023522/random-sampling-of-points-along-a-polygon-boundary
+    num_coords = len(obj_x_loc)
+
+    vi = [
+        [
+            obj_x_loc[(i + 1) % num_coords] - obj_x_loc[i],
+            obj_y_loc[(i + 1) % num_coords] - obj_y_loc[i],
+        ]
+        for i in range(num_coords)
+    ]
+    si = [np.linalg.norm(v) for v in vi]
+    di = np.linspace(0, sum(si), num_pts, endpoint=False)
+    new_points = []
+    for d in di:
+        for i, s in enumerate(si):
+            if d > s:
+                d -= s
+            else:
+                break
+        lnth = d / s
+        new_points.append(
+            [int(obj_x_loc[i] + lnth * vi[i][0]), int(obj_y_loc[i] + lnth * vi[i][1])]
+        )
+    return new_points
+
+
+data_dir = Config.RAW_DATA / "bluespace"
+
+
+def clean_bluespace(data_dir: Path) -> cudf.DataFrame:
     logger.info("Cleaning bluespace...")
     bluespace = gpd.GeoDataFrame(
-        pd.concat([gpd.read_file(shp) for shp in dir.glob("*.shp")], ignore_index=True)
-    )
-
-    def keep_tuples(row):
-        try:
-            row = row[:2]
-        except TypeError:
-            row = "DROP"
-        return row
-
-    bluespace = (
-        bluespace.simplify(25)
-        .apply(lambda x: list(itertools.chain.from_iterable(mapping(x)["coordinates"])))
-        .explode()
-        .apply(keep_tuples)
-    )
-    bluespace = (
-        pd.DataFrame(
-            bluespace[bluespace != "DROP"].tolist(), columns=["easting", "northing"]
+        pd.concat(
+            [gpd.read_file(shp) for shp in tqdm(list(data_dir.glob("*.shp")))],
+            ignore_index=True,
         )
-        .astype("int")
-        .drop_duplicates()
     )
-    return cudf.from_pandas(bluespace)
+    bluespace.geometry = bluespace.geometry.simplify(25)
+    bluespace = bluespace[["geometry"]]
+
+    def catch_exterior(row):
+        if isinstance(row, Polygon):
+            return row.exterior.coords.xy
+        elif isinstance(row, LineString):
+            return row.coords.xy
+        else:
+            return None
+
+    tqdm.pandas()
+    bluespace = cudf.DataFrame(
+        bluespace.progress_apply(
+            lambda row: single_parametric_interpolate(
+                *catch_exterior(row.geometry), num_pts=10
+            ),
+            axis=1,
+        )
+        .explode()
+        .dropna()
+        .tolist(),
+        columns=["easting", "northing"],
+    )
+    bluespace["easting"] = bluespace["easting"].round(-3)
+    bluespace["northing"] = bluespace["northing"].round(-3)
+
+    return bluespace.drop_duplicates()
 
 
 def clean_retail(path: Path, postcodes: cudf.DataFrame) -> cudf.DataFrame:
@@ -363,7 +403,7 @@ def clean_retail(path: Path, postcodes: cudf.DataFrame) -> cudf.DataFrame:
         .join(postcodes)
         .pipe(find_partial_pc, postcodes)
     )
-    return retail
+    return retail.reset_index()
 
 
 def subset_retail(

@@ -1,86 +1,98 @@
 stages:
+  get_nhs:
+    cmd: python -m ahah.get_nhs
+    outs:
+      # Hospitals
+      - data/raw/nhs/ets.csv
+      - data/raw/nhs/scotland/hospitals.csv
 
-    get_nhs:
-        cmd: python -m ahah.get_nhs
-        outs:
-            # Hospitals
-            - data/raw/nhs/ets.csv
-            - data/raw/nhs/scotland/hospitals.csv
+      # GP practices
+      - data/raw/nhs/epraccur.csv
+      - data/raw/nhs/scotland/gpp.csv
 
-            # GP practices
-            - data/raw/nhs/epraccur.csv
-            - data/raw/nhs/scotland/gpp.csv
+      # Dentists
+      - data/raw/nhs/egdpprac.csv
+      - data/raw/nhs/scotland/dentists.csv
 
-            # Dentists
-            - data/raw/nhs/egdpprac.csv
-            - data/raw/nhs/scotland/dentists.csv
+      # Pharmacies
+      - data/raw/nhs/edispensary.csv
+      - data/raw/nhs/scotland/pharmacies.csv
 
-            # Pharmacies
-            - data/raw/nhs/edispensary.csv
-            - data/raw/nhs/scotland/pharmacies.csv
+  os_highways:
+    cmd: python -m ahah.os_highways
+    deps:
+      - data/raw/os_highways/Highways_Data_March19.gdb.zip
+    outs:
+      - data/processed/osm/nodes.parquet
+      - data/processed/osm/edges.parquet
 
-    os_highways:
-        cmd: python -m ahah.os_highways
-        deps:
-            - data/raw/os_highways/Highways_Data_March19.gdb.zip
-        outs:
-            - data/processed/osm/nodes.parquet
-            - data/processed/osm/edges.parquet
+  process_routing:
+    cmd: python -m ahah.process_routing
+    deps:
+      - data/processed/osm/nodes.parquet
+      - data/raw/onspd/postcodes.csv
 
-    process_routing:
-        cmd: python -m ahah.process_routing
-        deps:
-            - data/processed/osm/nodes.parquet
-            - data/raw/onspd/postcodes.csv
+      - data/raw/nhs/ets.csv
+      - data/raw/nhs/scotland/hospitals.csv
 
-            - data/raw/nhs/ets.csv
-            - data/raw/nhs/scotland/hospitals.csv
+      - data/raw/nhs/epraccur.csv
+      - data/raw/nhs/scotland/gpp.csv
 
-            - data/raw/nhs/epraccur.csv
-            - data/raw/nhs/scotland/gpp.csv
+      - data/raw/nhs/egdpprac.csv
+      - data/raw/nhs/scotland/dentists.csv
 
-            - data/raw/nhs/egdpprac.csv
-            - data/raw/nhs/scotland/dentists.csv
+      - data/raw/nhs/edispensary.csv
+      - data/raw/nhs/scotland/pharmacies.csv
 
-            - data/raw/nhs/edispensary.csv
-            - data/raw/nhs/scotland/pharmacies.csv
+      - data/raw/greenspace/access.shp
+      - data/raw/bluespace
+    outs:
+      - data/processed/postcodes.parquet
+      - data/processed/hospitals.parquet
+      - data/processed/gpp.parquet
+      - data/processed/dentists.parquet
+      - data/processed/pharmacies.parquet
+      - data/processed/greenspace.parquet
+      - data/processed/bluespace.parquet
 
-            - data/raw/greenspace/access.shp
-            - data/raw/bluespace
-        outs:
-            - data/processed/postcodes.parquet
-            - data/processed/hospitals.parquet
-            - data/processed/gpp.parquet
-            - data/processed/dentists.parquet
-            - data/processed/pharmacies.parquet
-            - data/processed/greenspace.parquet
-            - data/processed/bluespace.parquet
+  process_air:
+    cmd: python -m ahah.process_air
+    deps:
+      - data/raw/lsoa/england_lsoa_2011.shp
+      - data/raw/air/mapno22019.csv
+      - data/raw/air/mapso22019.csv
+      - data/raw/air/mappm102019g.csv
+    outs:
+      - data/out/lsoa_air.csv
 
-    process_air:
-        cmd: python -m ahah.process_air
-        deps:
-            - data/raw/lsoa/england_lsoa_2011.shp
-            - data/raw/air/mapno22019.csv
-            - data/raw/air/mapso22019.csv
-            - data/raw/air/mappm102019g.csv
-        outs:
-            - data/out/lsoa_air.csv
+  routing:
+    cmd: python -m ahah.routing
+    deps:
+      - data/processed/osm/edges.parquet
+      - data/processed/postcodes.parquet
+      - data/processed/hospitals.parquet
+      - data/processed/gpp.parquet
+      - data/processed/dentists.parquet
+      - data/processed/pharmacies.parquet
+      - data/processed/greenspace.parquet
+      - data/processed/bluespace.parquet
+    outs:
+      - data/out/distances_hospitals.csv
+      - data/out/distances_gpp.csv
+      - data/out/distances_dentists.csv
+      - data/out/distances_pharmacies.csv
+      - data/out/distances_greenspace.csv
+      - data/out/distances_bluespace.csv
 
-    routing:
-        cmd: python -m ahah.routing
-        deps:
-            - data/processed/osm/edges.parquet
-            - data/processed/postcodes.parquet
-            - data/processed/hospitals.parquet
-            - data/processed/gpp.parquet
-            - data/processed/dentists.parquet
-            - data/processed/pharmacies.parquet
-            - data/processed/greenspace.parquet
-            - data/processed/bluespace.parquet
-        outs:
-            - data/out/distances_hospitals.csv
-            - data/out/distances_gpp.csv
-            - data/out/distances_dentists.csv
-            - data/out/distances_pharmacies.csv
-            - data/out/distances_greenspace.csv
-            - data/out/distances_bluespace.csv
+  aggregate:
+    cmd: python -m ahah.aggregate_lsoa
+    deps:
+      - data/out/distances_hospitals.csv
+      - data/out/distances_gpp.csv
+      - data/out/distances_dentists.csv
+      - data/out/distances_pharmacies.csv
+      - data/out/distances_greenspace.csv
+      - data/out/distances_bluespace.csv
+      - data/procesed/uprn_pcs.parquet
+    outs:
+      - data/out/median_dists.csv

@@ -40,8 +40,8 @@ stages:
       md5: 4e1bc2658cd6bdce116b21f13ac8a0ee
       size: 167311
     - path: data/raw/nhs/scotland/hospitals.csv
-      md5: ff61aae99ccdda689b6929d01a6180ab
-      size: 38356
+      md5: 8e995fe4d4517c8f72b9196253a38981
+      size: 38345
     - path: data/raw/nhs/scotland/pharmacies.csv
       md5: bda581caf6613b94585caa26ec525930
       size: 156427
@@ -49,7 +49,7 @@ stages:
     cmd: python -m ahah.process_routing
     deps:
     - path: data/processed/osm/nodes.parquet
-      md5: 9e41141ee596bb53d2b20adab3853c96
+      md5: c34e65013ee63e0618c4d5c444242dc2
       size: 54677314
     - path: data/raw/bluespace
       md5: 47aa3cd33c5f77473514cdaf7cecec2d.dir
@@ -77,8 +77,8 @@ stages:
       md5: 4e1bc2658cd6bdce116b21f13ac8a0ee
       size: 167311
     - path: data/raw/nhs/scotland/hospitals.csv
-      md5: ff61aae99ccdda689b6929d01a6180ab
-      size: 38356
+      md5: 8e995fe4d4517c8f72b9196253a38981
+      size: 38345
     - path: data/raw/nhs/scotland/pharmacies.csv
       md5: bda581caf6613b94585caa26ec525930
       size: 156427
@@ -87,26 +87,26 @@ stages:
       size: 1340976289
     outs:
     - path: data/processed/bluespace.parquet
-      md5: 95485b6b4cb794dee76e4722b0e07aca
-      size: 33911823
+      md5: f34fa2924ebb69d1a4c30f814386c032
+      size: 43741673
     - path: data/processed/dentists.parquet
-      md5: 8da6dcaaf623b5ae543500f156579f90
-      size: 28061452
+      md5: 54589fd9c9146f6c1cdd6481acf37da1
+      size: 292724
     - path: data/processed/gpp.parquet
-      md5: 98e29d3a83e1abf5628fbb8e6392e5d7
-      size: 28049365
+      md5: f0fc8683a1fbe30980b65911204efe04
+      size: 362346
     - path: data/processed/greenspace.parquet
-      md5: 42989c63ea1bb904c3aeef75e9dbcb1b
-      size: 21336654
+      md5: 60b780d8e9bd46d5408b1d56bfdabf08
+      size: 14658342
     - path: data/processed/hospitals.parquet
-      md5: 52e7281bde034fa85bab1d01267bb8ca
-      size: 27385468
+      md5: d9173a1c354ba0362384ca96322a8789
+      size: 758591
     - path: data/processed/pharmacies.parquet
-      md5: 6a6e6fe2750121e266fb2ade95e2faa8
-      size: 30974281
+      md5: 661628886968de0ea4ef81d59df1fcb9
+      size: 344172
     - path: data/processed/postcodes.parquet
-      md5: 8f9e9568e9da41722c1921ca63adbfdb
-      size: 25876092
+      md5: 5f6da1190ca5bdcfdec401ee385c6f52
+      size: 25875971
   process_air:
     cmd: python -m ahah.process_air
     deps:
@@ -147,8 +147,8 @@ stages:
       size: 2320550286
     outs:
     - path: data/processed/osm/edges.parquet
-      md5: a594787ddfc9d9e9f8ce74f00b0e0939
-      size: 103595211
+      md5: a488e42f22f9b61d8117510291113b5c
+      size: 103594923
     - path: data/processed/osm/nodes.parquet
-      md5: 9e41141ee596bb53d2b20adab3853c96
+      md5: c34e65013ee63e0618c4d5c444242dc2
       size: 54677314

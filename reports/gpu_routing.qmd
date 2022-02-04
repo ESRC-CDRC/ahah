@@ -1,0 +1,157 @@
+---
+title: "Parallel routing through GPUs"
+author: "Cillian Berragan"
+date: "20th January 2022"
+format:
+  html:
+    self-contained: true
+    code-fold: true
+    code-overflow: wrap
+jupyter: python3
+execute:
+  warning: false
+---
+
+GPUs present the opportunity to execute highly parallel processes an order of magnitude faster than traditional CPU bound solutions. While GPUs are already widely used in deep learning applications, more focus is being given to their use in traditional data processing when large amounts of data are involved. This article demonstrates how GPUs may be used to parallelise road network routing using the [`cugraph`](https://rapids.ai/) library, speeding up analysis times exponentially over the commonly used [`networkx`](https://networkx.org/) python library.
+
+To test our routing, we will be considering the drive-time distance for a collection of postcodes to their nearest GP practice^[Please note that only GP practices that fall within our postcode subset are considered, meaning for outer postcodes our estimates may be inaccurate]. First some functions and classes are loaded in from our base library named `ahah`, `cudf` provides GPU accelerated data frames, and `pandas` provides normal CPU bound data frames.
+
+```{python}
+#| code-summary: Imports
+
+import functools
+import time
+from typing import Union
+
+import cudf
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from ahah.common.utils import Config
+from ahah.process_routing import nearest_nodes
+from ahah.routing import Routing
+from ahah.routing_cpu import CPURouting
+```
+
+The road network data and postcodes have already been pre-processed so may be directly loaded into `cudf` GPU-accelerated data frames through the `get_data` function. This function takes in a single postcode, a list, or postcodes matched by a regular expression.
+
+```{python}
+#| code-summary: Get Data
+
+def get_data(pc: Union[str, list], use_gpu: bool):
+    edges = cudf.read_parquet(Config.OS_GRAPH / "edges.parquet")
+    nodes = cudf.read_parquet(Config.OS_GRAPH / "nodes.parquet")
+    postcodes = cudf.read_parquet(Config.PROCESSED_DATA / "postcodes.parquet")
+
+    if isinstance(pc, str):
+        postcodes = postcodes[postcodes["postcode"].str.match(pc)]
+    elif isinstance(pc, list):
+        postcodes = postcodes[postcodes["postcode"].isin(pc)]
+
+    gpp = cudf.read_parquet(Config.PROCESSED_DATA / "gpp.parquet")
+    gpp = gpp[gpp["postcode"].isin(postcodes["postcode"])]
+    gpp = nearest_nodes(gpp.reset_index(drop=True), nodes=nodes)
+
+    return {
+        "name": "gpp",
+        "edges": edges if use_gpu else edges.to_pandas(),
+        "nodes": nodes if use_gpu else nodes.to_pandas(),
+        "postcodes": postcodes if use_gpu else postcodes.to_pandas(),
+        "pois": gpp.to_pandas(),
+        "buffer": 50_000,
+    }
+```
+The `Routing` and `CPURouting` classes iterate over each POI, linked with their nearest road node, calculating the road distance from each postcode node within a 50km buffer, weighted by the estimated road drive-times. The following **'Setup'** chunk contains two helper functions to take in the data, process this routing, and output the distances and time-taken.
+
+```{python}
+#| code-summary: Setup
+
+def cpu_liverpool(**kwargs):
+    routing = CPURouting(**kwargs)
+    t1 = time.time()
+    routing.fit()
+    t2 = time.time()
+
+    postcodes = kwargs.get("postcodes")
+    return routing.distances.set_index("vertex").join(postcodes.set_index("node_id")), t2 - t1
+
+
+def gpu_liverpool(**kwargs):
+    routing = Routing(**kwargs)
+    t1 = time.time()
+    routing.fit()
+    t2 = time.time()
+
+    postcodes = kwargs.get("postcodes")
+    return routing.distances.set_index("vertex").join(postcodes.set_index("node_id")), t2 - t1
+```
+
+For our analysis we have selected a subset of postcodes for the High Peak Borough, containing 2,861 total postcodes, with an estimated population of around 90,000 people. The following code reads in a table of postcodes within this borough into a python `list`, which is then processed used to subset the overall postcode data.
+
+```{python}
+#| code-summary: Process Routing
+#| output: false
+
+hp_pcs = (
+    pd.read_csv(
+        "https://www.doogal.co.uk/" 
+        "AdministrativeAreasCSV.ashx?district=E07000037"
+    )
+    .loc[lambda row: row["In Use?"] == "Yes", "Postcode"]
+    .tolist()
+)
+
+cpu, cpu_time = cpu_liverpool(**get_data(pc=hp_pcs, use_gpu=False))
+gpu, gpu_time = gpu_liverpool(**get_data(pc=hp_pcs, use_gpu=True))
+```
+
+The processing times are given below.
+
+```{python}
+#| code-summary: Times
+
+print(f"CPU Routing complete in {cpu_time:.2f} seconds.")
+print(f"GPU Routing complete in {gpu_time:.2f} seconds.")
+
+print(f"Speedup: {cpu_time / gpu_time:.2f}x!")
+```
+
+It is clear that for this analysis, the total processing time is much slower when CPU bound over using the `cugraph` GPU library. This difference also extends when applied to larger datasets, as the GPU processing scales exponentially (within memory limits).
+
+@fig-dists gives an overview of the output from this analysis. There is a clear correlation between proximity to GP practice and drive-time accessibility, as expected. Due to the mixture of rural and urban settings within the chosen area, there is a relatively large disparity in accessibility between postcodes, while urban centred, dense postcodes have times primarily below 10 minutes, there are a select few remote postcodes with times exceeding 40 minutes. Notably, their relative proximity to GP practices does not account for this large difference, meaning in these remote areas, the road network is responsible for lower accessibility.
+
+```{python}
+#| label: fig-dists
+#| code-summary: Times
+#| fig-cap: "Distance from postcodes to nearest GP practices (red) within High Peak"
+
+gpu = gpu.set_index("postcode")
+cpu = cpu.set_index("postcode")
+gpp = get_data(pc=hp_pcs, use_gpu=False).pop("pois")
+
+joined = gpu[["distance"]].to_pandas().join(cpu, lsuffix="_gpu", rsuffix="_cpu")
+
+ax = joined.plot(
+    x="easting",
+    y="northing",
+    c="distance_gpu",
+    kind="scatter",
+)
+gpp.plot(x="easting", y="northing", c="red", kind="scatter", ax=ax)
+ax.get_xaxis().set_visible(False)
+ax.get_yaxis().set_visible(False)
+
+plt.show()
+```
+
+For peace of mind it is worth considering whether CPU or GPU processing gets different results. The mean difference appears to be around 1.2 seconds (0.02 minutes), with a maximum disagreement of 1.55 minutes.
+
+
+```{python}
+#| code-summary: Difference
+
+joined["diff"] = abs(joined["distance_gpu"] - joined["distance_cpu"])
+
+print(f"Mean difference: {joined['diff'].mean():.2f}")
+print(f"Max difference: {joined['diff'].max():.2f}")
+```

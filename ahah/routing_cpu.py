@@ -43,7 +43,7 @@ class CPURouting:
         postcodes: pd.DataFrame,
         pois: pd.DataFrame,
         weights: str = "time_weighted",
-        buffer: bool = True,
+        buffer: int = 50_000,
     ):
         self.postcode_ids: np.ndarray = postcodes["node_id"].unique()
         self.pois = pois.drop_duplicates("node_id")
@@ -57,19 +57,16 @@ class CPURouting:
         if not self.buffer:
             self.graph = nx.Graph()
             self.graph.add_weighted_edges_from(
-                self.edges[["source", "target", "time_weighted"]]
+                self.edges[["source", "target", self.weights]]
                 .to_records(index=False)
                 .tolist()
             )
 
-        self.log_file = Config.OUT_DATA / "logs" / f"{self.name}_intermediate.h5"
+        self.log_file = Config.OUT_DATA / "logs" / f"{self.name}_intermediate.csv"
 
         if self.log_file.exists():
             logger.warning("Resuming from a previous run.")
-            # -1 in case program stopped while saving to hdf
-            self.idx = (
-                dd.read_hdf(self.log_file, key=self.name)["idx"].max().compute() - 1
-            )
+            self.idx = pd.read_csv(self.log_file)["idx"].max() - 1
             logger.warning(
                 f"Run resumed at {self.idx / len(self.pois) * 100:.2f}% ({self.idx} / {len(self.pois)})"
             )
@@ -96,62 +93,38 @@ class CPURouting:
             f"Routing complete for {self.name} in {tdiff / 60:.2f} minutes,"
             " finding minimum distances."
         )
-        t1 = time.time()
-        self.distances = (
-            dd.read_hdf(
-                self.log_file,
-                key=f"{self.name}",
-                columns=["vertex", "distance"],
-            )
-            .groupby("vertex")
-            .min()
-            .compute()
-        )
-        t2 = time.time()
-        tdiff = t2 - t1
-        logger.debug(
-            f"Found minimum distances for {self.name} in {tdiff / 60:.2f} minutes."
-        )
         self.log_file.unlink()
 
     def create_sub_graph(self, poi: pd.Series):
-        buffer = poi.buffer
-        while True:
-            min_pt = np.array([poi.easting - buffer, poi.northing - buffer])
-            max_pt = np.array([poi.easting + buffer, poi.northing + buffer])
+        min_pt = np.array([poi.easting - self.buffer, poi.northing - self.buffer])
+        max_pt = np.array([poi.easting + self.buffer, poi.northing + self.buffer])
 
-            node_subset = self.nodes[
-                np.all(
-                    (min_pt <= self.nodes[["easting", "northing"]].values)
-                    & (self.nodes[["easting", "northing"]].values <= max_pt),
-                    axis=1,
-                )
-            ]
-
-            sub_edges = self.edges[
-                self.edges["source"].isin(node_subset["node_id"])
-                | self.edges["target"].isin(node_subset["node_id"])
-            ]
-            sub_graph = nx.Graph()
-            sub_graph.add_weighted_edges_from(
-                sub_edges[["u", "v", "length"]].to_records(index=False).tolist()
+        node_subset = self.nodes[
+            np.all(
+                (min_pt <= self.nodes[["easting", "northing"]].values)
+                & (self.nodes[["easting", "northing"]].values <= max_pt),
+                axis=1,
             )
+        ]
 
-            pc_nodes = pd.Series(poi.pc_node).isin(sub_graph.nodes()).sum()
-            poi_node = sub_graph.nodes().isin([poi.node_id]).sum()
-
-            # ensure all postcode nodes in + poi node
-            if (poi_node) & (pc_nodes == len(poi.pc_node)):
-                return sub_graph
-            buffer = (buffer + 100) * 2
+        sub_edges = self.edges[
+            self.edges["source"].isin(node_subset["node_id"])
+            | self.edges["target"].isin(node_subset["node_id"])
+        ]
+        sub_graph = nx.Graph()
+        sub_graph.add_weighted_edges_from(
+            sub_edges[["source", "target", self.weights]]
+            .to_records(index=False)
+            .tolist()
+        )
+        return sub_graph
 
     def get_shortest_dists(self, poi):
         """
         Use `cugraph.sssp` to calculate shortest paths from POI to postcodes
 
         First subsets road graph, then finds shortest paths, ensuring all paths are
-        routed that are known to be important to each POI. Saves to `hdf` to allow
-        restarts.
+        routed that are known to be important to each POI.
 
         Parameters
         ----------
@@ -171,10 +144,15 @@ class CPURouting:
 
         self.idx += 1
         pc_dist["idx"] = self.idx
-        pc_dist.to_hdf(
-            self.log_file,
-            key=self.name,
-            format="table",
-            append=True,
-            index=False,
+
+        if self.log_file.exists():
+            self.distances = pd.read_csv(self.log_file).append(pc_dist)
+        else:
+            self.distances = pc_dist[["vertex", "distance", "idx"]]
+
+        self.distances = (
+            self.distances.sort_values("distance")
+            .drop_duplicates("vertex")
+            .reset_index()[["vertex", "distance", "idx"]]
         )
+        self.distances.to_csv(self.log_file, index=False)
