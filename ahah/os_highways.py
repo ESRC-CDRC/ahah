@@ -1,10 +1,13 @@
 import cudf
 import geopandas as gpd
+
 import pandas as pd
-from ahah.common.logger import logger
-from ahah.common.utils import Config
+from cuml.neighbors.nearest_neighbors import NearestNeighbors
 from pandas import IndexSlice as idx
 from rich.progress import track
+
+from ahah.common.logger import logger
+from ahah.common.utils import Config
 
 
 def process_edges(edges: pd.DataFrame) -> pd.DataFrame:
@@ -60,10 +63,40 @@ def process_edges(edges: pd.DataFrame) -> pd.DataFrame:
         / edges["speed_estimate"]
         * 60,
     )
-    edges.columns
-    edges.roadClassification
 
     return edges[["startNode", "endNode", "time_weighted", "length"]]
+
+
+def change_ferry_nodes(nodes, fnodes, fedges):
+    nbrs = NearestNeighbors(n_neighbors=1, output_type="cudf", algorithm="brute").fit(
+        nodes[["easting", "northing"]]
+    )
+    _, indices = nbrs.kneighbors(fnodes[["easting", "northing"]])
+    fnodes["road_id"] = nodes.iloc[indices]["TOID"].reset_index(drop=True)
+
+    fedges = (
+        fedges.merge(
+            fnodes[["TOID", "road_id"]],
+            left_on="startNode",
+            right_on="TOID",
+        )
+        .rename(columns={"road_id": "startNode"})
+        .drop("TOID", axis=1)
+    )
+    fedges = (
+        fedges.merge(
+            fnodes[["TOID", "road_id"]],
+            left_on="endNode",
+            right_on="TOID",
+        )
+        .rename(columns={"road_id": "endNode"})
+        .drop("TOID", axis=1)
+    )
+
+    fnodes = fnodes[["road_id", "easting", "northing"]].rename(
+        columns={"road_ID": "TOID"}
+    )
+    return fnodes, fedges
 
 
 if __name__ == "__main__":
@@ -71,9 +104,6 @@ if __name__ == "__main__":
 
     NUM_EDGES = 5_062_741
     NUM_NODES = 4_289_045
-
-    # for both edges and nodes I subset by 100k rows as they are too large to
-    # read directly into memory. There may be a better way.
 
     # edges processing
     edges = cudf.DataFrame()
@@ -85,6 +115,14 @@ if __name__ == "__main__":
             ignore_geometry=True,
         ).pipe(process_edges)
         edges: cudf.DataFrame = edges.append(cudf.from_pandas(subset_edges))
+    ferry_edges = cudf.from_pandas(
+        gpd.read_file(Config.HW_DATA, layer="FerryLink", ignore_geometry=True)
+    )[["startNode", "endNode", "SHAPE_Length"]].rename(
+        columns={"SHAPE_Length": "length"}
+    )
+    ferry_edges = ferry_edges.assign(
+        time_weighted=(ferry_edges["length"].astype(float) / 1000) / 25 * 1.609344 * 60
+    )
     logger.debug("Edges processed.")
 
     # nodes processing
@@ -101,9 +139,19 @@ if __name__ == "__main__":
         )
         subset_nodes.drop("geometry", axis=1, inplace=True)
         nodes: cudf.DataFrame = nodes.append(cudf.from_pandas(subset_nodes))
+    ferry_nodes = gpd.read_file(Config.HW_DATA, layer="FerryNode")[["TOID", "geometry"]]
+    ferry_nodes["easting"], ferry_nodes["northing"] = (
+        ferry_nodes.geometry.x.astype("int"),
+        ferry_nodes.geometry.y.astype("int"),
+    )
+    ferry_nodes = cudf.from_pandas(ferry_nodes.drop("geometry", axis=1))
     logger.debug("Nodes processed.")
 
-    nodes["node_id"] = nodes["TOID"]
+    ferry_nodes, ferry_edges = change_ferry_nodes(nodes, ferry_nodes, ferry_edges)
+
+    nodes = nodes[["TOID", "easting", "northing"]].append(ferry_nodes)
+    edges = edges.reset_index(drop=True).append(ferry_edges)
+    nodes = nodes.rename(columns={"TOID": "node_id"})
     nodes = nodes[
         (nodes["node_id"].isin(edges["startNode"]))
         | (nodes["node_id"].isin(edges["endNode"]))
