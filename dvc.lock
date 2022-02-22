@@ -87,26 +87,26 @@ stages:
       size: 1340976289
     outs:
     - path: data/processed/bluespace.parquet
-      md5: f34fa2924ebb69d1a4c30f814386c032
-      size: 43741673
+      md5: af6b67ea4997f08615bc5bd4a94a096f
+      size: 1933958
     - path: data/processed/dentists.parquet
-      md5: 54589fd9c9146f6c1cdd6481acf37da1
-      size: 292724
+      md5: 967641f8eb5408d8aff60ada26114825
+      size: 338547
     - path: data/processed/gpp.parquet
-      md5: f0fc8683a1fbe30980b65911204efe04
-      size: 362346
+      md5: 3294a608b4f35da68f8f045b76e43987
+      size: 414799
     - path: data/processed/greenspace.parquet
-      md5: 60b780d8e9bd46d5408b1d56bfdabf08
-      size: 14658342
+      md5: 327052918391f44fe4da5a2088f0bd04
+      size: 15818915
     - path: data/processed/hospitals.parquet
-      md5: d9173a1c354ba0362384ca96322a8789
-      size: 758591
+      md5: 47f8cdfb0a89a5d77873a9882aeae289
+      size: 887315
     - path: data/processed/pharmacies.parquet
-      md5: 661628886968de0ea4ef81d59df1fcb9
-      size: 344172
+      md5: f660c2f40e614de52b16c66e90253faf
+      size: 395092
     - path: data/processed/postcodes.parquet
-      md5: 5f6da1190ca5bdcfdec401ee385c6f52
-      size: 25875971
+      md5: 2303a1e02665394c0ed3fef736633b05
+      size: 32569100
   process_air:
     cmd: python -m ahah.process_air
     deps:
