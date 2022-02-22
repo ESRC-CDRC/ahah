@@ -7,7 +7,6 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely.geometry import LineString, Polygon
-from shapely.geometry.linestring import LineString
 from tqdm import tqdm
 
 from ahah.common.logger import logger
@@ -69,6 +68,19 @@ class Config:
         "/d08bc753-c6dc-4dbd-8b37-ef439d3a7428/download"
         "/dispenser_contactdetails_oct2020_notabs.csv",
     }
+
+
+def combine_lsoa(eng, scot, wales):
+    eng = gpd.read_file(eng)[["code", "name", "geometry"]].rename(
+        columns={"code": "lsoa11"}
+    )
+    scot = gpd.read_file(scot)[["DataZone", "Name", "geometry"]].rename(
+        columns={"DataZone": "lsoa11", "Name": "name"}
+    )
+    wales = gpd.read_file(wales)[["LSOA11Code", "lsoa11name", "geometry"]].rename(
+        columns={"LSOA11Code": "lsoa11", "lsoa11name": "name"}
+    )
+    return eng.append(scot).append(wales)
 
 
 def fix_postcodes(df: DataFrame) -> DataFrame:
@@ -137,19 +149,12 @@ def find_partial_pc(df, postcodes):
     return df.dropna().append(missing)
 
 
-def clean_postcodes(
-    path: Path, current: bool, scotland=True, wales=True
-) -> cudf.DataFrame:
+def clean_postcodes(path: Path, current: bool) -> cudf.DataFrame:
     logger.info("Cleaning postcodes...")
-
-    countries = ["E92000001"]
-    if scotland:
-        countries.append("S92000003")
-    if wales:
-        countries.append("W92000004")
 
     dtypes = {
         "pcd": "str",
+        "lsoa11": "str",
         "oseast1m": "int",
         "osnrth1m": "int",
         "doterm": "str",
@@ -164,14 +169,10 @@ def clean_postcodes(
     postcodes = (
         cudf.read_csv(
             path,
-            usecols=["pcd", "oseast1m", "osnrth1m", "doterm", "ctry"],
+            usecols=["pcd", "lsoa11", "oseast1m", "osnrth1m", "doterm"],
             dtype=dtypes,
         )
         .rename(columns=column_names)
-        .set_index("ctry")
-        .loc[countries, :]
-        .reset_index()
-        .drop("ctry", axis=1)
         .pipe(fix_postcodes)
         .dropna(subset=["northing", "easting"])
         .set_index("postcode")
@@ -319,6 +320,9 @@ def clean_greenspace_access(path: Path) -> cudf.DataFrame:
 
 def single_parametric_interpolate(obj_x_loc, obj_y_loc, num_pts: int):
     # https://stackoverflow.com/questions/42023522/random-sampling-of-points-along-a-polygon-boundary
+    if obj_x_loc is None or obj_y_loc is None:
+        return None
+
     num_coords = len(obj_x_loc)
 
     vi = [
@@ -344,6 +348,15 @@ def single_parametric_interpolate(obj_x_loc, obj_y_loc, num_pts: int):
     return new_points
 
 
+def catch_exterior(row):
+    if isinstance(row, Polygon):
+        return row.exterior.coords.xy
+    elif isinstance(row, LineString):
+        return None
+    else:
+        return None
+
+
 data_dir = Config.RAW_DATA / "bluespace"
 
 
@@ -355,23 +368,24 @@ def clean_bluespace(data_dir: Path) -> cudf.DataFrame:
             ignore_index=True,
         )
     )
-    bluespace.geometry = bluespace.geometry.simplify(25)
-    bluespace = bluespace[["geometry"]]
 
-    def catch_exterior(row):
-        if isinstance(row, Polygon):
-            return row.exterior.coords.xy
-        elif isinstance(row, LineString):
-            return row.coords.xy
-        else:
-            return None
+    high_water = bluespace[bluespace["CLASSIFICA"] == "High Water Mark"]
+    bluespace = bluespace[(bluespace.geometry.area > 10_000)]
+    bluespace.geometry = bluespace.geometry.simplify(25)
+    high_water.geometry = high_water.geometry.simplify(25)
+
+    tqdm.pandas()
+    high_water = high_water.progress_apply(lambda x: x.geometry.coords.xy, axis=1)
+    bluespace = bluespace.progress_apply(
+        lambda x: catch_exterior(x.geometry), axis=1
+    ).dropna()
+    bluespace = bluespace.append(high_water)
+    bluespace = pd.DataFrame(bluespace.tolist())
 
     tqdm.pandas()
     bluespace = cudf.DataFrame(
         bluespace.progress_apply(
-            lambda row: single_parametric_interpolate(
-                *catch_exterior(row.geometry), num_pts=10
-            ),
+            lambda row: single_parametric_interpolate(row[0], row[1], num_pts=10),
             axis=1,
         )
         .explode()
@@ -379,79 +393,8 @@ def clean_bluespace(data_dir: Path) -> cudf.DataFrame:
         .tolist(),
         columns=["easting", "northing"],
     )
-    bluespace["easting"] = bluespace["easting"].round(-3)
-    bluespace["northing"] = bluespace["northing"].round(-3)
+
+    bluespace["easting"] = bluespace["easting"].round(-2)
+    bluespace["northing"] = bluespace["northing"].round(-2)
 
     return bluespace.drop_duplicates()
-
-
-def clean_retail(path: Path, postcodes: cudf.DataFrame) -> cudf.DataFrame:
-    retail = cudf.read_csv(path)
-    retail = retail[["PremiseId", "Category", "Subcategory", "PostCode"]]
-
-    retail = (
-        retail.rename(
-            columns={
-                "PremiseId": "id",
-                "PostCode": "postcode",
-                "Category": "category",
-                "Subcategory": "subcategory",
-            }
-        )
-        .pipe(fix_postcodes)
-        .set_index("postcode")
-        .join(postcodes)
-        .pipe(find_partial_pc, postcodes)
-    )
-    return retail.reset_index()
-
-
-def subset_retail(
-    retail: cudf.DataFrame,
-    types: List[str],
-    column: str = "subcategory",
-) -> cudf.DataFrame:
-    return retail[retail[column].isin(types)]
-
-
-def clean_fast_food(retail: cudf.DataFrame):
-    # All present
-    types = [
-        "Chinese Fast Food Takeaway",
-        "Fast Food Delivery",
-        "Fish & Chip Shops",
-        "Indian Takeaway",
-        "Pizza Takeaway",
-        "Sandwich Delivery Service",
-        "Take Away Food Shops",
-    ]
-    return subset_retail(retail, types)
-
-
-def clean_gambling(retail: cudf.DataFrame):
-    # All present
-    types = ["Casino Clubs", "Bookmakers"]
-    return subset_retail(retail, types)
-
-
-def clean_offlicences(retail: cudf.DataFrame):
-    types = ["Off Licences"]
-    return subset_retail(retail, types, column="category")
-
-
-def clean_pubs(retail: cudf.DataFrame):
-    # All present
-    types = ["Night Clubs", "Bars", "Public Houses & Inns"]
-    return subset_retail(retail, types)
-
-
-def clean_tobacconists(retail: cudf.DataFrame):
-    # Missing Tobacconists from Subcategory
-    types = ["Vaping Stores and Tobacconists"]
-    return subset_retail(retail, types)
-
-
-def clean_leisure(retail: cudf.DataFrame):
-    # All present
-    types = ["Leisure Centres & Swimming Baths", "Health Clubs"]
-    return subset_retail(retail, types)
