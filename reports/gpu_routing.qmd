@@ -61,7 +61,7 @@ def get_data(pc: Union[str, list], use_gpu: bool):
         "buffer": 50_000,
     }
 ```
-The `Routing` and `CPURouting` classes iterate over each POI, linked with their nearest road node, calculating the road distance from each postcode node within a 50km buffer, weighted by the estimated road drive-times. The following **'Setup'** chunk contains two helper functions to take in the data, process this routing, and output the distances and time-taken.
+The `Routing` and `CPURouting` classes iterate over each POI, linked with their nearest road node, calculating the road distance from each postcode node within a 50km buffer, weighted by the estimated road drive-times. The following **Setup** chunk contains two helper functions to take in the data, process this routing, and output the distances and time-taken.
 
 ```{python}
 #| code-summary: Setup
