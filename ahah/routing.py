@@ -47,7 +47,7 @@ class Routing:
         postcodes: cudf.DataFrame,
         pois: pd.DataFrame,
         weights: str = "time_weighted",
-        buffer: int = 50_000,
+        buffer: int = 25_000,
     ):
         self.postcode_ids: np.ndarray = postcodes["node_id"].unique().to_array()
         self.pois = pois.drop_duplicates("node_id")
@@ -120,28 +120,44 @@ class Routing:
         cugraph.Graph:
             Graph object that is a subset of all road nodes
         """
-        node_subset = cuspatial.points_in_spatial_window(
-            min_x=poi.easting - self.buffer,
-            max_x=poi.easting + self.buffer,
-            min_y=poi.northing - self.buffer,
-            max_y=poi.northing + self.buffer,
-            xs=self.nodes["easting"],
-            ys=self.nodes["northing"],
-        )
-        node_subset = node_subset.merge(
-            self.nodes, left_on=["x", "y"], right_on=["easting", "northing"]
-        ).drop(["x", "y"], axis=1)
-        sub_source = self.edges.merge(node_subset, left_on="source", right_on="node_id")
-        sub_target = self.edges.merge(node_subset, left_on="target", right_on="node_id")
-        sub_edges = sub_source.append(sub_target).drop_duplicates(["source", "target"])
-        sub_graph = cugraph.Graph()
-        sub_graph.from_cudf_edgelist(
-            sub_edges,
-            source="source",
-            destination="target",
-            edge_attr=self.weights,
-        )
-        return sub_graph
+        buffer = max(poi.buffer, self.buffer)
+        while True:
+            node_subset = cuspatial.points_in_spatial_window(
+                min_x=poi.easting - buffer,
+                max_x=poi.easting + buffer,
+                min_y=poi.northing - buffer,
+                max_y=poi.northing + buffer,
+                xs=self.nodes["easting"],
+                ys=self.nodes["northing"],
+            )
+            node_subset = node_subset.merge(
+                self.nodes, left_on=["x", "y"], right_on=["easting", "northing"]
+            ).drop(["x", "y"], axis=1)
+            sub_source = self.edges.merge(
+                node_subset, left_on="source", right_on="node_id"
+            )
+            sub_target = self.edges.merge(
+                node_subset, left_on="target", right_on="node_id"
+            )
+            sub_edges = sub_source.append(sub_target).drop_duplicates(
+                ["source", "target"]
+            )
+            sub_graph = cugraph.Graph()
+            sub_graph.from_cudf_edgelist(
+                sub_edges,
+                source="source",
+                destination="target",
+                edge_attr=self.weights,
+            )
+            pc_nodes = cudf.Series(poi.pc_node).isin(sub_graph.nodes()).sum()
+            poi_node = sub_graph.nodes().isin([poi.node_id]).sum()
+
+            # ensure all postcode nodes in + poi node
+            # don't incrase buffer for large pois lists
+            if poi_node & (pc_nodes == len(poi.pc_node)):
+                return sub_graph
+            buffer = buffer * 2
+            logger.debug(f"{poi.Index=}: increasing {buffer=}")
 
     def get_shortest_dists(self, poi: namedtuple) -> None:
         """
@@ -187,7 +203,6 @@ if __name__ == "__main__":
     edges = cudf.read_parquet(Config.OS_GRAPH / "edges.parquet")
     nodes = cudf.read_parquet(Config.OS_GRAPH / "nodes.parquet")
     postcodes = cudf.read_parquet(Config.PROCESSED_DATA / "postcodes.parquet")
-    df = pd.read_parquet(Config.PROCESSED_DATA / "gpp.parquet")
 
     logger.debug("Finished reading nodes, edges and postcodes.")
 
@@ -210,7 +225,7 @@ if __name__ == "__main__":
 
             distances = (
                 routing.distances.set_index("vertex")
-                .join(postcodes.set_index("node_id"))
+                .join(postcodes.set_index("node_id"), how="right")
                 .reset_index()
             )
 
