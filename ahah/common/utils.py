@@ -1,12 +1,12 @@
 import os
 from pathlib import Path
-from typing import List, Union
+from typing import Union
 
 import cudf
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from shapely.geometry import LineString, Polygon
+from shapely.geometry import Polygon
 from tqdm import tqdm
 
 from ahah.common.logger import logger
@@ -371,12 +371,7 @@ def single_parametric_interpolate(obj_x_loc, obj_y_loc, num_pts: int):
 
 
 def catch_exterior(row):
-    if isinstance(row, Polygon):
-        return row.exterior.coords.xy
-    elif isinstance(row, LineString):
-        return None
-    else:
-        return None
+    return row.exterior.coords.xy if isinstance(row, Polygon) else None
 
 
 data_dir = Config.RAW_DATA / "bluespace"
