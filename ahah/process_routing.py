@@ -142,6 +142,7 @@ if __name__ == "__main__":
     pharmacies: cudf.DataFrame = clean_pharmacies(
         england=Config.RAW_DATA / "nhs" / "edispensary.csv",
         scotland=Config.RAW_DATA / "nhs" / "scotland" / "pharmacies.csv",
+        wales=Config.RAW_DATA / "nhs" / "wales" / "pharmacy.xls",
         postcodes=pcs,
     )
     greenspace: cudf.DataFrame = clean_greenspace_access(

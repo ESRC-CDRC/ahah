@@ -68,6 +68,17 @@ class Config:
         "/d08bc753-c6dc-4dbd-8b37-ef439d3a7428/download"
         "/dispenser_contactdetails_oct2020_notabs.csv",
     }
+    NHS_WALES_URL = (
+        "https://nwssp.nhs.wales/ourservices/"
+        "primary-care-services/primary-care-services-documents/"
+    )
+
+    NHS_WALES_FILES = {
+        "pharmacy": (
+            "pharmacy-practice-dispensing-data-docs"
+            "/dispensing-data-report-november-2021"
+        )
+    }
 
 
 def combine_lsoa(eng, scot, wales):
@@ -246,7 +257,7 @@ def clean_gpp(
 
 
 def clean_pharmacies(
-    england: Path, scotland: Path, postcodes: cudf.DataFrame
+    england: Path, scotland: Path, wales: Path, postcodes: cudf.DataFrame
 ) -> cudf.DataFrame:
     logger.info("Cleaning pharmacies...")
 
@@ -270,7 +281,18 @@ def clean_pharmacies(
         .join(postcodes)
         .pipe(find_partial_pc, postcodes)
     )
-    return epharm.append(spharm).reset_index()
+
+    wpharm = (
+        cudf.from_pandas(pd.read_excel(wales, usecols=["Account Number", "Post Code"]))
+        .rename(columns={"Account Number": "pharmacy", "Post Code": "postcode"})
+        .astype(str)
+        .pipe(fix_postcodes)
+        .set_index("postcode")
+        .join(postcodes)
+        .pipe(find_partial_pc, postcodes)
+    )
+    breakpoint()
+    return epharm.append(spharm).append(wpharm).reset_index()
 
 
 def clean_hospitals(

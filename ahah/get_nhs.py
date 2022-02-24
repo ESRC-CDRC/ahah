@@ -1,8 +1,10 @@
-import requests
-from ahah.common.logger import logger
-from ahah.common.utils import Config
 from pathlib import Path
 from zipfile import ZipFile
+
+import requests
+
+from ahah.common.logger import logger
+from ahah.common.utils import Config
 
 
 def download_url(url: str, save_path: Path, chunk_size: int = 128):
@@ -46,3 +48,10 @@ if __name__ == "__main__":
             logger.debug(f"{Config.NHS_SCOT_URL + url} saved to {file}")
         else:
             logger.warning(f"{file} exists: skipping {Config.NHS_SCOT_URL + url}")
+
+    for name, url in Config.NHS_WALES_FILES.items():
+        file = Config.RAW_DATA / "nhs" / "wales" / f"{name}.xls"
+        if not file.exists():
+            download_url(Config.NHS_WALES_URL + url, save_path=file)
+        else:
+            logger.warning(f"{file} exists: skipping {Config.NHS_WALES_URL + url}")
