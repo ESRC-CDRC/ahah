@@ -14,10 +14,8 @@ def exp_default(x, df):
 
 
 def read_v3():
-    v3 = pd.read_csv("./data/out/weighted_mean_dists.csv")
-    v3_secure = pd.read_csv(
-        "./data/out/190222_CILLIANBERRAGAN_AHAH_WEIGHTED_MEANS_LSOA.csv"
-    )
+    v3 = pd.read_csv("./data/out/median_dists.csv")
+    v3_secure = pd.read_csv("./data/out/010422_CILLIANBERRAGAN_AHAH_MEDIAN_LSOA.csv")
     air = pd.read_csv("./data/out/lsoa_air.csv")
     return v3.merge(v3_secure, on="lsoa11", how="outer").merge(
         air, on="lsoa11", how="outer"
@@ -46,9 +44,10 @@ def process(idx, low_dist, env_dist, air_qual, high_dist):
         idx[high_dist].rank(method="min", ascending=False).astype(int)
     )
 
-    # higher values os gspassive are better (prop of pc that is gs)
-    idx[env_dist_ranked[1]] = (
-        idx[env_dist[1]].rank(method="min", ascending=False).astype(int)
+    # higher values os gspassive are better (prop of pc that is gs for v3)
+    # (number of near gs in v2)
+    idx[env_dist_ranked[0]] = (
+        idx[env_dist[0]].rank(method="min", ascending=False).astype(int)
     )
 
     idx[low_dist_expd] = exp_default(idx[low_dist_ranked], idx)
@@ -79,14 +78,14 @@ def process(idx, low_dist, env_dist, air_qual, high_dist):
 
 if __name__ == "__main__":
     low_dist = ["gpp", "dentists", "pharmacies", "hospitals", "leisure"]
-    env_dist = ["greenspace", "gspassive", "bluespace"]
+    env_dist = ["gspassive", "bluespace"]
     air_qual = ["no22019", "so22019", "pm102019g"]
     high_dist = ["gambling", "offlicences", "pubs", "tobacconists", "fastfood"]
-    v3 = read_v3().dropna()
+    v3 = read_v3()
     v3 = process(v3, low_dist, env_dist, air_qual, high_dist)
 
     low_dist = ["gpp_dist", "ed_dist", "dent_dist", "pharm_dist", "leis_dist"]
-    env_dist = ["green_act", "green_pas", "blue_dist"]
+    env_dist = ["green_pas", "blue_dist"]
     air_qual = ["no2_mean", "pm10_mean", "so2_mean"]
     high_dist = ["gamb_dist", "ffood_dist", "pubs_dist", "off_dist", "tobac_dist"]
     v2 = read_v2()

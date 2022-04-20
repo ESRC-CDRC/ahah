@@ -36,11 +36,9 @@ def nearest_nodes(df: cudf.DataFrame, nodes: cudf.DataFrame) -> cudf.DataFrame:
     nbrs = NearestNeighbors(n_neighbors=1, output_type="cudf", algorithm="brute").fit(
         nodes[["easting", "northing"]]
     )
-    dist, indices = nbrs.kneighbors(df[["easting", "northing"]])
+    _, indices = nbrs.kneighbors(df[["easting", "northing"]])
     df["node_id"] = nodes.iloc[indices]["node_id"].reset_index(drop=True)
-    df["dist"] = dist
-
-    return df.drop("dist", axis=1)
+    return df
 
 
 def get_buffers(
@@ -74,7 +72,7 @@ def get_buffers(
 
     poi_nn = (
         postcodes.join(indices)[["node_id"] + indices.columns.tolist()]
-        .set_index("node_id")  # type:ignore
+        .set_index("node_id")
         .stack()
         .rename("poi_idx")
         .reset_index()
@@ -113,41 +111,54 @@ def get_buffers(
 
 
 if __name__ == "__main__":
-    # TODO: Use newest UPRNs and PCS? Ensure all LSOA covered
-    # TODO: Use only current = True for end processing.
     logger.info("Starting routing data processing...")
     logger.debug("Reading and cleaning data...")
 
-    nodes = cudf.read_parquet(Config.OS_GRAPH / "nodes.parquet")
-
+    nodes: cudf.DataFrame = cudf.read_parquet(Config.OS_GRAPH / "nodes.parquet")
     pcs: cudf.DataFrame = clean_postcodes(
-        path=Config.RAW_DATA / "onspd" / "postcodes.csv",
-        current=False,
+        path=Config.RAW_DATA / "onspd" / "ONSPD_FEB_2022_UK.csv", current=True
+    )
+
+    all_pcs: cudf.DataFrame = clean_postcodes(
+        path=Config.RAW_DATA / "onspd" / "ONSPD_FEB_2022_UK.csv", current=False
     ).drop("lsoa11", axis=1)
+    all_pcs.reset_index().to_parquet(Config.PROCESSED_DATA / "all_pcs.parquet")
+
     gpp: cudf.DataFrame = clean_gpp(
         england=Config.RAW_DATA / "nhs" / "epraccur.csv",
         scotland=Config.RAW_DATA / "nhs" / "scotland" / "gpp.csv",
-        postcodes=pcs,
+        postcodes=all_pcs,
     )
     hospitals: cudf.DataFrame = clean_hospitals(
         england=Config.RAW_DATA / "nhs" / "ets.csv",
         scotland=Config.RAW_DATA / "nhs" / "scotland" / "hospitals.csv",
-        postcodes=pcs,
+        postcodes=all_pcs,
     )
     dentists: cudf.DataFrame = clean_dentists(
         england=Config.RAW_DATA / "nhs" / "egdpprac.csv",
         scotland=Config.RAW_DATA / "nhs" / "scotland" / "dentists.csv",
-        postcodes=pcs,
+        postcodes=all_pcs,
     )
     pharmacies: cudf.DataFrame = clean_pharmacies(
         england=Config.RAW_DATA / "nhs" / "edispensary.csv",
         scotland=Config.RAW_DATA / "nhs" / "scotland" / "pharmacies.csv",
         wales=Config.RAW_DATA / "nhs" / "wales" / "pharmacy.xls",
-        postcodes=pcs,
+        postcodes=all_pcs,
     )
-    greenspace: cudf.DataFrame = clean_greenspace_access(
-        Config.RAW_DATA / "greenspace/access.shp"
-    )
+    # greenspace: cudf.DataFrame = clean_greenspace_access(
+    #     england=Config.RAW_DATA
+    #     / "greenspace"
+    #     / "en_walks"
+    #     / "gis_osm_roads_free_1.shp",
+    #     scotland=Config.RAW_DATA
+    #     / "greenspace"
+    #     / "sc_walks"
+    #     / "gis_osm_roads_free_1.shp",
+    #     wales=Config.RAW_DATA
+    #     / "greenspace"
+    #     / "wales_walks"
+    #     / "gis_osm_roads_free_1.shp",
+    # )
     bluespace: cudf.DataFrame = clean_bluespace(Config.RAW_DATA / "bluespace")
 
     logger.debug("Finding nearest node to postcodes...")
@@ -159,13 +170,13 @@ if __name__ == "__main__":
         "hospitals": hospitals,
         "dentists": dentists,
         "pharmacies": pharmacies,
-        "greenspace": greenspace,
+        # "greenspace": greenspace,
         "bluespace": bluespace,
     }
 
     for poi, df in poi_list.items():
         logger.debug(f"Finding nearest node to {poi}...")
         df = nearest_nodes(df.reset_index(drop=True), nodes=nodes)
-        df = get_buffers(poi=df, postcodes=pcs, k=5)
+        df = get_buffers(poi=df, postcodes=pcs, k=10)
         logger.debug(f"Saving {poi}:{Config.PROCESSED_DATA}...")
         df.to_parquet(Config.PROCESSED_DATA / f"{poi}.parquet")
