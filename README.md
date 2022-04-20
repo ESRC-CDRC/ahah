@@ -33,7 +33,7 @@ Liverpool, United Kingdom_
 
 This project identifies the time-weighted distance required to travel by road between every postcode in Great Britain and a selection of health related points of interest. A ranked combination of these drive-times is used to create the AHAH index.
 
-Access is defined through the average time-weighted road network distance for each postcode within each LSOA to the nearest point of interest of a particular type. For this, the road highways network and road speed estimates provided through [Ordnance Survey](https://www.ordnancesurvey.co.uk/business-government/products/mastermap-highways) was used, alongside the [ONS Postcode Directory for May 2020](https://data.gov.uk/dataset/06803af0-6054-410a-822a-f7ab30bcd8b1/ons-postcode-directory-may-2020), which gives centroids for every postcode in the country.
+Access is defined through the average time-weighted road network distance for each postcode within each LSOA to the nearest point of interest of a particular type. For this, the road highways network and road speed estimates provided through [Ordnance Survey](https://www.ordnancesurvey.co.uk/business-government/products/open-map-roads) was used, alongside the [ONS Postcode Directory for May 2020](https://data.gov.uk/dataset/06803af0-6054-410a-822a-f7ab30bcd8b1/ons-postcode-directory-may-2020), which gives centroids for every postcode in the country.
 
 This is a computationally intense calculation, with the total road network used having 3,816,897 edges, and 3,215,522 nodes. Access to each nearest health related POI was calculated using the _Single Source Shortest Path_ algorithm, for all 1,659,451 postcodes in Great Britain.
 
@@ -53,12 +53,11 @@ ahah
 └── common
     ├── logger.py  # use rich logging
     └── utils.py  # utility functions
-
 ```
 
 ## Methodology
 
-#### 1. OS Open road network
+#### 1. OS Open road network `ahah/os_highways.py`
 
 - Speed estimates given to each road, based on `formOfway` and
   `roadClassification`
