@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Union
 
 import cudf
+import dask_geopandas
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -22,7 +23,7 @@ class Config:
     PROCESSED_DATA = DATA_PATH / "processed"
     OUT_DATA = DATA_PATH / "out"
     OS_GRAPH = PROCESSED_DATA / "osm"
-    HW_DATA = RAW_DATA / "os_highways" / "Highways_Data_March19.gdb.zip"
+    HW_DATA = RAW_DATA / "os_highways" / "oproad_gb.gpkg"
 
     POI_LIST = [
         "gpp",
@@ -40,39 +41,38 @@ class Config:
     # https://digital.nhs.uk/services/organisation-data-service/data-downloads
     NHS_URL = "https://files.digital.nhs.uk/assets/ods/current/"
     NHS_FILES = {
-        # 28 May 2021
+        # 25 Feburary 2022 - Checked 22 March 2022
         "gpp": "epraccur.zip",
-        # 28 May 2021
+        # ""
         "dentists": "egdpprac.zip",
-        # 28 May 2021
+        # ""
         "pharmacies": "edispensary.zip",
-        # 28 May 2021
+        # ""
         "hospitals": "ets.zip",
     }
     NHS_SCOT_URL = "https://www.opendata.nhs.scot/dataset/"
     NHS_SCOT_FILES = {
-        # GP Practices and List sizes April 2021
+        # GP Practices and List sizes Jan 2022
         "gpp": "f23655c3-6e23-4103-a511-a80d998adb90/resource"
         "/a794d603-95ab-4309-8c92-b48970478c14/download"
-        "/practice_contactdetails_apr2021-open-data.csv",
-        # Dental Practices December 2020
+        "/practice_contactdetails_jan2022.csv",
+        # Dental Practices June 2021
         "dentists": "2f218ba7-6695-4b22-867d-41383ae36de7/resource"
-        "/20040f9f-e598-4237-8a12-8bc35c0b2959/download"
-        "/nhs-dental-practices-and-nhs-dental-registrations-as-at-31st-december-2020.csv",
-        # Current NHS Hospitals in Scotland 6th May, 2021
+        "/12bf4b02-15e6-41d0-9ae0-18663b463833/download"
+        "/nhs-dental-practices-and-nhs-dental-registrations-as-at-30th-june-2021.csv",
+        # Current NHS Hospitals in Scotland 16th December 2021
         "hospitals": "cbd1802e-0e04-4282-88eb-d7bdcfb120f0/resource"
         "/c698f450-eeed-41a0-88f7-c1e40a568acc/download"
-        "/current-hospital_flagged20210506.csv",
-        # Dispenser Details October 2020
+        "/current-hospital_flagged20211216.csv",
+        # Dispenser Details October 2021
         "pharmacies": "a30fde16-1226-49b3-b13d-eb90e39c2058/resource"
-        "/d08bc753-c6dc-4dbd-8b37-ef439d3a7428/download"
-        "/dispenser_contactdetails_oct2020_notabs.csv",
+        "/9f9db0c9-8b5a-4813-b586-7e0084bbf9b0/download"
+        "/dispenser_contactdetails_oct2021.csv",
     }
     NHS_WALES_URL = (
         "https://nwssp.nhs.wales/ourservices/"
         "primary-care-services/primary-care-services-documents/"
     )
-
     NHS_WALES_FILES = {
         "pharmacy": (
             "pharmacy-practice-dispensing-data-docs"
@@ -168,7 +168,7 @@ def clean_postcodes(path: Path, current: bool) -> cudf.DataFrame:
         "lsoa11": "str",
         "oseast1m": "int",
         "osnrth1m": "int",
-        "doterm": "str",
+        "doterm": "int",
         "ctry": "str",
     }
     column_names = {
@@ -180,19 +180,32 @@ def clean_postcodes(path: Path, current: bool) -> cudf.DataFrame:
     postcodes = (
         cudf.read_csv(
             path,
-            usecols=["pcd", "lsoa11", "oseast1m", "osnrth1m", "doterm"],
+            usecols=[*dtypes],
             dtype=dtypes,
         )
         .rename(columns=column_names)
+        .set_index("ctry")
+        .loc[["E92000001", "S92000003", "W92000004"]]
         .pipe(fix_postcodes)
         .dropna(subset=["northing", "easting"])
         .set_index("postcode")
+        .drop_duplicates()
     )
 
-    if current:
-        return postcodes[postcodes["doterm"].isnull()].drop("doterm", axis=1)
-    else:
+    if not current:
         return postcodes.drop("doterm", axis=1)
+
+    # 2 scottish LSOA have no current postcodes - so use nearby ones
+    pc_current = postcodes[postcodes["doterm"].isnull()]
+    missing = postcodes.copy()
+    missing.loc["G21 4QJ", "lsoa11"] = "S01010206"
+    missing.loc[["G21 1NL", "G21 1RR"], "lsoa11"] = "S01010226"
+
+    return (
+        pc_current.append(postcodes[postcodes["lsoa11"] == "S01011827"])
+        .append(missing.loc[["G21 4QJ", "G21 1NL", "G21 1RR"]])
+        .drop("doterm", axis=1)
+    )
 
 
 def clean_dentists(
@@ -273,8 +286,8 @@ def clean_pharmacies(
     )
 
     spharm = (
-        cudf.read_csv(scotland, usecols=[0, 6])
-        .rename(columns={"﻿DispenserCode": "pharmacy", "Postcode": "postcode"})
+        cudf.read_csv(scotland, usecols=[0, 6], sep="\t")
+        .rename(columns={"DispenserCode": "pharmacy", "Postcode": "postcode"})
         .astype(str)
         .pipe(fix_postcodes)
         .set_index("postcode")
@@ -291,7 +304,6 @@ def clean_pharmacies(
         .join(postcodes)
         .pipe(find_partial_pc, postcodes)
     )
-    breakpoint()
     return epharm.append(spharm).append(wpharm).reset_index()
 
 
@@ -328,16 +340,39 @@ def clean_air(path: Path, col: "str"):
     return air
 
 
-def clean_greenspace_access(path: Path) -> cudf.DataFrame:
-    logger.info("Cleaning greenspace access...")
-    greenspace = gpd.read_file(path)
-    greenspace["easting"], greenspace["northing"] = (
-        greenspace.geometry.x,
-        greenspace.geometry.y,
+# def clean_greenspace_access(path: Path) -> cudf.DataFrame:
+#     logger.info("Cleaning greenspace access...")
+#     greenspace = gpd.read_file(path)
+#     greenspace["easting"], greenspace["northing"] = (
+#         greenspace.geometry.x,
+#         greenspace.geometry.y,
+#     )
+#     return cudf.DataFrame(greenspace.drop("geometry", axis=1)).loc[
+#         :, ["id", "easting", "northing"]
+#     ]
+
+
+def clean_greenspace_access(england: Path, scotland: Path, wales: Path):
+    england = gpd.read_file(england, crs=4326)
+    scotland = gpd.read_file(scotland, crs=4326)
+    wales = gpd.read_file(wales, crs=4326)
+    greenspace = dask_geopandas.from_geopandas(
+        wales.append(england).append(scotland), npartitions=os.cpu_count()
     )
-    return cudf.DataFrame(greenspace.drop("geometry", axis=1)).loc[
-        :, ["id", "easting", "northing"]
-    ]
+
+    greenspace = greenspace[greenspace["fclass"] == "path"].to_crs(27700).compute()
+
+    greenspace = (
+        greenspace.geometry.boundary.apply(lambda x: x.geoms).explode().dropna()
+    )
+    greenspace = gpd.GeoDataFrame(greenspace.rename("geometry"), geometry="geometry")
+    greenspace["easting"] = greenspace.geometry.x
+    greenspace["northing"] = greenspace.geometry.y
+
+    greenspace["easting"] = greenspace["easting"].round(-2).astype(int)
+    greenspace["northing"] = greenspace["northing"].round(-2).astype(int)
+
+    return cudf.from_pandas(greenspace[["easting", "northing"]]).drop_duplicates()
 
 
 def single_parametric_interpolate(obj_x_loc, obj_y_loc, num_pts: int):
@@ -372,9 +407,6 @@ def single_parametric_interpolate(obj_x_loc, obj_y_loc, num_pts: int):
 
 def catch_exterior(row):
     return row.exterior.coords.xy if isinstance(row, Polygon) else None
-
-
-data_dir = Config.RAW_DATA / "bluespace"
 
 
 def clean_bluespace(data_dir: Path) -> cudf.DataFrame:
