@@ -17,11 +17,13 @@ stages:
       # Pharmacies
       - data/raw/nhs/edispensary.csv
       - data/raw/nhs/scotland/pharmacies.csv
+      - data/raw/nhs/wales/pharmacy.xls
 
   os_highways:
     cmd: python -m ahah.os_highways
     deps:
-      - data/raw/os_highways/Highways_Data_March19.gdb.zip
+      - data/raw/os_highways/oproad_gb.gpkg
+      - data/raw/os_highways/strtgi_essh_gb/ferry_line.shp
     outs:
       - data/processed/osm/nodes.parquet
       - data/processed/osm/edges.parquet
@@ -30,7 +32,7 @@ stages:
     cmd: python -m ahah.process_routing
     deps:
       - data/processed/osm/nodes.parquet
-      - data/raw/onspd/postcodes.csv
+      - ./data/raw/onspd/ONSPD_FEB_2022_UK.csv
 
       - data/raw/nhs/ets.csv
       - data/raw/nhs/scotland/hospitals.csv
@@ -93,6 +95,20 @@ stages:
       - data/out/distances_pharmacies.csv
       - data/out/distances_greenspace.csv
       - data/out/distances_bluespace.csv
-      - data/procesed/uprn_pcs.parquet
+      - data/raw/ndvi/sentinel_postcode_ndvi_20210419.csv
+      - data/processed/postcodes.parquet
     outs:
       - data/out/median_dists.csv
+
+  create_index:
+    cmd: python -m ahah.create_index
+    deps:
+      - data/out/median_dists.csv
+      - data/out/190222_CILLIANBERRAGAN_AHAH_WEIGHTED_MEANS_LSOA.csv # will change this soon
+      - data/raw/v2/allvariableslsoawdeciles.csv
+      - data/raw/lsoa/england_lsoa_2011.shp
+      - data/raw/lsoa/SG_DataZone_Bdry_2011.shp
+      - data/raw/lsoa/lsoa_wales_2011.gpkg
+    outs:
+      - data/out/v3_lsoa.gpkg
+      - data/out/v2_lsoa.gpkg

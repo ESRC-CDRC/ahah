@@ -1,10 +1,8 @@
 import cudf
 import geopandas as gpd
-
 import pandas as pd
 from cuml.neighbors.nearest_neighbors import NearestNeighbors
 from pandas import IndexSlice as idx
-from rich.progress import track
 
 from ahah.common.logger import logger
 from ahah.common.utils import Config
@@ -31,31 +29,16 @@ def process_edges(edges: pd.DataFrame) -> pd.DataFrame:
     b_roads = ["B Road", "B Road Primary"]
 
     edges["speed_estimate"] = -1
-    edges = edges.set_index(["formOfWay", "routeHierarchy"])
+    edges = edges.set_index(["formOfWay", "roadClassification"])
 
     edges.loc[idx[:, "Motorway"], "speed_estimate"] = 67
     edges.loc[idx["Dual Carriageway", a_roads], "speed_estimate"] = 57
     edges.loc[idx["Dual Carriageway", b_roads], "speed_estimate"] = 45
     edges.loc[idx["Single Carriageway", a_roads + b_roads], "speed_estimate"] = 25
-    edges.loc[idx[:, "Minor Road"], "speed_estimate"] = 24
-    edges.loc[idx[:, "Local Road"], "speed_estimate"] = 20
+    edges.loc[idx[:, "Unclassified"], "speed_estimate"] = 24
     edges.loc[idx["Roundabout", :], "speed_estimate"] = 10
     edges.loc[idx[["Track", "Layby"], :], "speed_estimate"] = 5
     edges.loc[edges["speed_estimate"] == -1, "speed_estimate"] = 10
-
-    # Unsure what to keep
-    # edges = edges.drop(
-    #     index="Traffic Island Link At Junction", level=0, errors="ignore"
-    # )
-    # edges = edges.drop(index="Traffic Island Link", level=0, errors="ignore")
-    # edges = edges.drop(index="Enclosed Traffic Area", level=0, errors="ignore")
-    # edges = edges.drop(index="Layby", level=0, errors="ignore")
-    # edges = edges.drop(index="Track", level=0, errors="ignore")
-    # edges = edges.drop(index="Guided Busway", level=0, errors="ignore")
-    # edges = edges.drop(index="Restricted Local Access Road", level=1, errors="ignore")
-    # edges = edges.drop(
-    #     index="Restricted Secondary Access Road", level=1, errors="ignore"
-    # )
 
     edges = edges.assign(
         speed_estimate=edges["speed_estimate"] * 1.609344,
@@ -67,34 +50,68 @@ def process_edges(edges: pd.DataFrame) -> pd.DataFrame:
     return edges[["startNode", "endNode", "time_weighted", "length"]]
 
 
-def change_ferry_nodes(nodes, fnodes, fedges):
+def process_ferry(ferry_df):
+    ferry_df["node_id"] = ferry_df.geometry.boundary.apply(lambda row: row.geoms)
+
+    ferry_nodes = (
+        ferry_df["node_id"]
+        .explode()
+        .drop_duplicates()
+        .reset_index(drop=True)
+        .to_frame()
+    )
+    ferry_nodes["easting"] = ferry_nodes["node_id"].apply(lambda row: row.x)
+    ferry_nodes["northing"] = ferry_nodes["node_id"].apply(lambda row: row.y)
+
+    ferry_edges = ferry_df[["node_id", "geometry"]].copy()
+    ferry_edges["startNode"] = ferry_edges["node_id"].apply(lambda row: row[0])
+    ferry_edges["endNode"] = ferry_edges["node_id"].apply(lambda row: row[1])
+    ferry_edges["length"] = ferry_edges.geometry.length
+    ferry_edges = ferry_edges.assign(
+        time_weighted=(ferry_edges["length"].astype(float) / 1000) / 25 * 1.609344 * 60
+    )
+
+    ferry_nodes["node_id"] = ferry_nodes["node_id"].astype(str)
+    ferry_nodes = cudf.from_pandas(ferry_nodes[["node_id", "easting", "northing"]])
+    ferry_edges["startNode"] = ferry_edges["startNode"].astype(str)
+    ferry_edges["endNode"] = ferry_edges["endNode"].astype(str)
+    ferry_edges = cudf.from_pandas(
+        ferry_edges.rename(columns={"FERRY_FROM": "startNode", "FERRY_TO": "endNode"})[
+            ["startNode", "endNode", "length", "time_weighted"]
+        ]
+    )
+    return ferry_nodes, ferry_edges
+
+
+def change_ferry_nodes(nodes_df, fnodes, fedges):
     nbrs = NearestNeighbors(n_neighbors=1, output_type="cudf", algorithm="brute").fit(
-        nodes[["easting", "northing"]]
+        nodes_df[["easting", "northing"]]
     )
     _, indices = nbrs.kneighbors(fnodes[["easting", "northing"]])
-    fnodes["road_id"] = nodes.iloc[indices]["TOID"].reset_index(drop=True)
+    fnodes["road_id"] = nodes_df.iloc[indices]["node_id"].reset_index(drop=True)
 
     fedges = (
         fedges.merge(
-            fnodes[["TOID", "road_id"]],
+            fnodes[["node_id", "road_id"]],
             left_on="startNode",
-            right_on="TOID",
+            right_on="node_id",
         )
         .rename(columns={"road_id": "startNode"})
-        .drop("TOID", axis=1)
+        .drop("node_id", axis=1)
     )
+
     fedges = (
         fedges.merge(
-            fnodes[["TOID", "road_id"]],
+            fnodes[["node_id", "road_id"]],
             left_on="endNode",
-            right_on="TOID",
+            right_on="node_id",
         )
         .rename(columns={"road_id": "endNode"})
-        .drop("TOID", axis=1)
+        .drop("node_id", axis=1)
     )
 
     fnodes = fnodes[["road_id", "easting", "northing"]].rename(
-        columns={"road_ID": "TOID"}
+        columns={"road_id": "node_id"}
     )
     return fnodes, fedges
 
@@ -102,60 +119,44 @@ def change_ferry_nodes(nodes, fnodes, fedges):
 if __name__ == "__main__":
     logger.info("Starting OS highways processing...")
 
-    NUM_EDGES = 5_062_741
-    NUM_NODES = 4_289_045
-
-    # edges processing
-    edges = cudf.DataFrame()
-    for n in track(range(0, NUM_EDGES, 100_000), description="Processing edges..."):
-        subset_edges = gpd.read_file(
+    edges = cudf.from_pandas(
+        gpd.read_file(
             Config.HW_DATA,
             layer="RoadLink",
-            rows=slice(n, n + 100_000),
             ignore_geometry=True,
         ).pipe(process_edges)
-        edges: cudf.DataFrame = edges.append(cudf.from_pandas(subset_edges))
-    ferry_edges = cudf.from_pandas(
-        gpd.read_file(Config.HW_DATA, layer="FerryLink", ignore_geometry=True)
-    )[["startNode", "endNode", "SHAPE_Length"]].rename(
-        columns={"SHAPE_Length": "length"}
     )
-    ferry_edges = ferry_edges.assign(
-        time_weighted=(ferry_edges["length"].astype(float) / 1000) / 25 * 1.609344 * 60
+    nodes = gpd.read_file(Config.HW_DATA, layer="RoadNode")
+    nodes["easting"], nodes["northing"] = nodes.geometry.x, nodes.geometry.y
+    nodes = cudf.from_pandas(
+        nodes[["id", "easting", "northing"]].rename(columns={"id": "node_id"})
     )
-    logger.debug("Edges processed.")
+    ferry = gpd.read_file(
+        "./data/raw/os_highways/strtgi_essh_gb/ferry_line.shp",
+    )[["FERRY_FROM", "FERRY_TO", "geometry"]]
+    ferry_nodes, ferry_edges = process_ferry(ferry)
 
-    # nodes processing
-    nodes = cudf.DataFrame()
-    for n in track(range(0, NUM_NODES, 100_000), description="Processing nodes..."):
-        subset_nodes = gpd.read_file(
-            Config.HW_DATA,
-            layer="RoadNode",
-            rows=slice(n, n + 100_000),
-        )
-        subset_nodes["easting"], subset_nodes["northing"] = (
-            subset_nodes.geometry.x.astype("int"),
-            subset_nodes.geometry.y.astype("int"),
-        )
-        subset_nodes.drop("geometry", axis=1, inplace=True)
-        nodes: cudf.DataFrame = nodes.append(cudf.from_pandas(subset_nodes))
-    ferry_nodes = gpd.read_file(Config.HW_DATA, layer="FerryNode")[["TOID", "geometry"]]
-    ferry_nodes["easting"], ferry_nodes["northing"] = (
-        ferry_nodes.geometry.x.astype("int"),
-        ferry_nodes.geometry.y.astype("int"),
-    )
-    ferry_nodes = cudf.from_pandas(ferry_nodes.drop("geometry", axis=1))
-    logger.debug("Nodes processed.")
+    # for some reason the isles of scilly do not have a ferry route
+    extra_ferry_nodes = {
+        "node_id": ["scilly", "penz"],
+        "easting": [90139, 147432],
+        "northing": [10633, 30086],
+    }
+    extra_ferry_edges = {
+        "startNode": ["penz", "scilly"],
+        "endNode": ["scilly", "penz"],
+        "length": [165, 165],
+        "time_weighted": [165, 165],
+    }
+    ferry_nodes = ferry_nodes.append(extra_ferry_nodes, ignore_index=True)
+    ferry_edges = ferry_edges.append(extra_ferry_edges, ignore_index=True)
 
     ferry_nodes, ferry_edges = change_ferry_nodes(nodes, ferry_nodes, ferry_edges)
 
-    nodes = nodes[["TOID", "easting", "northing"]].append(ferry_nodes)
+    nodes = nodes[["node_id", "easting", "northing"]].append(ferry_nodes)
     edges = edges.reset_index(drop=True).append(ferry_edges)
-    nodes = nodes.rename(columns={"TOID": "node_id"})
-    nodes = nodes[
-        (nodes["node_id"].isin(edges["startNode"]))
-        | (nodes["node_id"].isin(edges["endNode"]))
-    ]
+
+    # convert to sequential ints
     nodes["node_id"] = nodes["node_id"].astype("category")
     node_ids = dict(enumerate(nodes["node_id"].cat.categories.to_pandas()))
     node_ids = {v: k for k, v in node_ids.items()}
