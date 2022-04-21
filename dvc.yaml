@@ -104,7 +104,7 @@ stages:
     cmd: python -m ahah.create_index
     deps:
       - data/out/median_dists.csv
-      - data/out/190222_CILLIANBERRAGAN_AHAH_WEIGHTED_MEANS_LSOA.csv # will change this soon
+      - data/out/010422_CILLIANBERRAGAN_AHAH_WEIGHTED_MEANS_LSOA.csv
       - data/raw/v2/allvariableslsoawdeciles.csv
       - data/raw/lsoa/england_lsoa_2011.shp
       - data/raw/lsoa/SG_DataZone_Bdry_2011.shp
