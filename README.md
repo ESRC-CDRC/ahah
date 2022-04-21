@@ -45,7 +45,7 @@ This calculation was made possible through the GPU accelerated Python library `c
 ahah
 ├── aggregate_lsoa.py  # aggregate outputs to LSOA level
 ├── create_index.py  # use aggregates to create index
-├── get_nhs.py  # retrieve E&W NHS data
+├── get_nhs.py  # retrieve NHS data
 ├── os_highways.py  # process OS open roads data
 ├── process_air.py  # process air quality data
 ├── process_routing.py  # process all POI data
