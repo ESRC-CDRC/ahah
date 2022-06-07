@@ -30,7 +30,7 @@
 import numpy as np
 import pandas as pd
 from ahah.common.logger import logger
-from ahah.common.utils import Config, clean_air
+from ahah.common.utils import Config, clean_air, combine_lsoa
 from scipy.interpolate import griddata
 from shapely.geometry import Polygon
 
@@ -74,16 +74,17 @@ def interpolate_air(
     )
 
     grid_gdf = gpd.GeoDataFrame(grid_df, geometry=&#34;geometry&#34;, crs=27700)
-    return gpd.sjoin(grid_gdf, lsoa).groupby(&#34;code&#34;)[col].mean()
+    return gpd.sjoin(grid_gdf, lsoa).groupby(&#34;lsoa11&#34;)[col].mean()
 
 
 if __name__ == &#34;__main__&#34;:
     logger.info(&#34;Starting air quality processing...&#34;)
 
-    lsoa: gpd.GeoDataFrame = gpd.read_file(
-        Config.RAW_DATA / &#34;lsoa/england_lsoa_2011.shp&#34;
+    lsoa = combine_lsoa(
+        eng=Config.RAW_DATA / &#34;lsoa&#34; / &#34;england_lsoa_2011.shp&#34;,
+        scot=Config.RAW_DATA / &#34;lsoa&#34; / &#34;SG_DataZone_Bdry_2011.shp&#34;,
+        wales=Config.RAW_DATA / &#34;lsoa&#34; / &#34;lsoa_wales_2011.gpkg&#34;,
     )
-
     no = clean_air(path=Config.RAW_DATA / &#34;air/mapno22019.csv&#34;, col=&#34;no22019&#34;)
     so = clean_air(path=Config.RAW_DATA / &#34;air/mapso22019.csv&#34;, col=&#34;so22019&#34;)
     pm = clean_air(path=Config.RAW_DATA / &#34;air/mappm102019g.csv&#34;, col=&#34;pm102019g&#34;)
@@ -93,8 +94,9 @@ if __name__ == &#34;__main__&#34;:
 
     logger.debug(f&#34;Saving air dataframe to {Config.OUT_DATA / &#39;lsoa_air.csv&#39;}&#34;)
     air_dfs = [pd.DataFrame(df) for df in [no, so, pm]]
-    lsoa_air = lsoa.set_index(&#34;code&#34;).join(air_dfs)
-    lsoa_air[[&#34;name&#34;, &#34;no22019&#34;, &#34;so22019&#34;, &#34;pm102019g&#34;]].to_csv(
+
+    lsoa_air = lsoa.set_index(&#34;lsoa11&#34;).join(air_dfs).reset_index()
+    lsoa_air[[&#34;lsoa11&#34;, &#34;no22019&#34;, &#34;so22019&#34;, &#34;pm102019g&#34;]].to_csv(
         Config.OUT_DATA / &#34;lsoa_air.csv&#34;, index=False
     )</code></pre>
 </details>
@@ -161,7 +163,7 @@ if __name__ == &#34;__main__&#34;:
     )
 
     grid_gdf = gpd.GeoDataFrame(grid_df, geometry=&#34;geometry&#34;, crs=27700)
-    return gpd.sjoin(grid_gdf, lsoa).groupby(&#34;code&#34;)[col].mean()</code></pre>
+    return gpd.sjoin(grid_gdf, lsoa).groupby(&#34;lsoa11&#34;)[col].mean()</code></pre>
 </details>
 </dd>
 </dl>

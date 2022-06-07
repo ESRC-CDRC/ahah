@@ -47,14 +47,14 @@ Liverpool, United Kingdom</em><br>
 <sup>*</sup> <em>Correspondence</em>: C.Berragan@liverpool.ac.uk</p>
 <h2 id="overview">Overview</h2>
 <p>This project identifies the time-weighted distance required to travel by road between every postcode in Great Britain and a selection of health related points of interest. A ranked combination of these drive-times is used to create the AHAH index.</p>
-<p>Access is defined through the average time-weighted road network distance for each postcode within each LSOA to the nearest point of interest of a particular type. For this, the road highways network and road speed estimates provided through <a href="https://www.ordnancesurvey.co.uk/business-government/products/mastermap-highways">Ordnance Survey</a> was used, alongside the <a href="https://data.gov.uk/dataset/06803af0-6054-410a-822a-f7ab30bcd8b1/ons-postcode-directory-may-2020">ONS Postcode Directory for May 2020</a>, which gives centroids for every postcode in the country.</p>
+<p>Access is defined through the average time-weighted road network distance for each postcode within each LSOA to the nearest point of interest of a particular type. For this, the road highways network and road speed estimates provided through <a href="https://www.ordnancesurvey.co.uk/business-government/products/open-map-roads">Ordnance Survey</a> was used, alongside the <a href="https://data.gov.uk/dataset/06803af0-6054-410a-822a-f7ab30bcd8b1/ons-postcode-directory-may-2020">ONS Postcode Directory for May 2020</a>, which gives centroids for every postcode in the country.</p>
 <p>This is a computationally intense calculation, with the total road network used having 3,816,897 edges, and 3,215,522 nodes. Access to each nearest health related POI was calculated using the <em>Single Source Shortest Path</em> algorithm, for all 1,659,451 postcodes in Great Britain.</p>
 <p>This calculation was made possible through the GPU accelerated Python library <code>cugraph</code>, part of the <a href="https://rapids.ai">NVIDIA RAPIDS ecosystem</a>, allowing the computation to be highly parallel, taking minutes, rather than days.</p>
 <h2 id="project-layout">Project layout</h2>
 <pre><code class="language-bash">ahah
 ├── aggregate_lsoa.py  # aggregate outputs to LSOA level
 ├── create_index.py  # use aggregates to create index
-├── get_nhs.py  # retrieve E&amp;W NHS data
+├── get_nhs.py  # retrieve NHS data
 ├── os_highways.py  # process OS open roads data
 ├── process_air.py  # process air quality data
 ├── process_routing.py  # process all POI data
@@ -62,10 +62,9 @@ Liverpool, United Kingdom</em><br>
 └── common
     ├── logger.py  # use rich logging
     └── utils.py  # utility functions
-
 </code></pre>
 <h2 id="methodology">Methodology</h2>
-<h4 id="1-os-open-road-network">1. OS Open road network</h4>
+<h4 id="1-os-open-road-network-ahahos_highwayspy">1. OS Open road network <code>ahah/os_highways.py</code></h4>
 <ul>
 <li>Speed estimates given to each road, based on <code>formOfway</code> and
 <code>roadClassification</code></li>
@@ -198,7 +197,7 @@ England</a></li>
 <li><a href="#overview">Overview</a></li>
 <li><a href="#project-layout">Project layout</a></li>
 <li><a href="#methodology">Methodology</a><ul>
-<li><a href="#1-os-open-road-network">1. OS Open road network</a></li>
+<li><a href="#1-os-open-road-network-ahahos_highwayspy">1. OS Open road network ahah/os_highways.py</a></li>
 <li><a href="#2-process-data-ahahprocess_datapy">2. Process Data ahah/process_data.py</a></li>
 <li><a href="#3-routing-ahahroutingpy">3. Routing ahah/routing.py</a></li>
 </ul>

@@ -28,17 +28,18 @@
 </summary>
 <pre><code class="python">from __future__ import annotations
 
+import time
+from collections import namedtuple
+
 import cudf
 import cugraph
 import cuspatial
-import dask.dataframe as dd
 import numpy as np
 import pandas as pd
-import time
-import warnings
+from rich.progress import track
+
 from ahah.common.logger import logger
 from ahah.common.utils import Config
-from rich.progress import track
 
 
 class Routing:
@@ -74,19 +75,18 @@ class Routing:
         postcodes: cudf.DataFrame,
         pois: pd.DataFrame,
         weights: str = &#34;time_weighted&#34;,
-        use_buffers: bool = True,
+        buffer: int = 25_000,
     ):
         self.postcode_ids: np.ndarray = postcodes[&#34;node_id&#34;].unique().to_array()
         self.pois = pois.drop_duplicates(&#34;node_id&#34;)
 
         self.edges = edges
         self.nodes = nodes
-
         self.name = name
         self.weights = weights
-        self.use_buffers = use_buffers
+        self.buffer = buffer
 
-        if not self.use_buffers:
+        if not self.buffer:
             self.graph = cugraph.Graph()
             self.graph.from_cudf_edgelist(
                 self.edges,
@@ -95,19 +95,15 @@ class Routing:
                 edge_attr=self.weights,
             )
 
-        self.log_file = Config.OUT_DATA / &#34;logs&#34; / f&#34;{self.name}_intermediate.h5&#34;
+        self.log_file = Config.OUT_DATA / &#34;logs&#34; / f&#34;{self.name}_intermediate.csv&#34;
 
         if self.log_file.exists():
             logger.warning(&#34;Resuming from a previous run.&#34;)
-            with warnings.catch_warnings():
-                warnings.filterwarnings(&#34;ignore&#34;, category=UserWarning)
-                # -1 in case program stopped while saving to hdf
-                self.idx = (
-                    dd.read_hdf(self.log_file, key=self.name)[&#34;idx&#34;].max().compute() - 1
-                )
-                logger.warning(
-                    f&#34;Run resumed at {self.idx / len(self.pois) * 100:.2f}% ({self.idx} / {len(self.pois)})&#34;
-                )
+            self.idx = cudf.read_csv(self.log_file)[&#34;idx&#34;].max() - 1
+            logger.warning(
+                f&#34;Run resumed at {self.idx / len(self.pois) * 100:.2f}%&#34;
+                f&#34; ({self.idx} / {len(self.pois)})&#34;
+            )
         else:
             self.idx = 0
 
@@ -131,24 +127,6 @@ class Routing:
             f&#34;Routing complete for {self.name} in {tdiff / 60:.2f} minutes,&#34;
             &#34; finding minimum distances.&#34;
         )
-
-        t1 = time.time()
-        self.distances = (
-            dd.read_hdf(
-                self.log_file,
-                key=f&#34;{self.name}&#34;,
-                columns=[&#34;vertex&#34;, &#34;distance&#34;],
-            )
-            .map_partitions(cudf.from_pandas)
-            .groupby(&#34;vertex&#34;)
-            .min()
-            .compute()
-        )
-        t2 = time.time()
-        tdiff = t2 - t1
-        logger.debug(
-            f&#34;Found minimum distances for {self.name} in {tdiff / 60:.2f} minutes.&#34;
-        )
         self.log_file.unlink()
 
     def create_sub_graph(self, poi) -&gt; cugraph.Graph:
@@ -170,8 +148,7 @@ class Routing:
         cugraph.Graph:
             Graph object that is a subset of all road nodes
         &#34;&#34;&#34;
-        # very small buffers do not work well
-        buffer = poi.buffer if poi.buffer &gt;= 1000 else 1000
+        buffer = max(poi.buffer, self.buffer)
         while True:
             node_subset = cuspatial.points_in_spatial_window(
                 min_x=poi.easting - buffer,
@@ -200,17 +177,17 @@ class Routing:
                 destination=&#34;target&#34;,
                 edge_attr=self.weights,
             )
-
             pc_nodes = cudf.Series(poi.pc_node).isin(sub_graph.nodes()).sum()
             poi_node = sub_graph.nodes().isin([poi.node_id]).sum()
 
             # ensure all postcode nodes in + poi node
-            if (poi_node) &amp; (pc_nodes == len(poi.pc_node)):
+            # don&#39;t incrase buffer for large pois lists
+            if poi_node &amp; (pc_nodes == len(poi.pc_node)):
                 return sub_graph
-            buffer = (buffer + 100) * 2
+            buffer = buffer * 2
             logger.debug(f&#34;{poi.Index=}: increasing {buffer=}&#34;)
 
-    def get_shortest_dists(self, poi):
+    def get_shortest_dists(self, poi: namedtuple) -&gt; None:
         &#34;&#34;&#34;
         Use `cugraph.sssp` to calculate shortest paths from POI to postcodes
 
@@ -223,7 +200,7 @@ class Routing:
         poi : namedtuple
             Single POI created from `df.itertuples()`
         &#34;&#34;&#34;
-        if self.use_buffers:
+        if self.buffer:
             self.graph = self.create_sub_graph(poi=poi)
 
         shortest_paths: cudf.DataFrame = cugraph.filter_unreachable(
@@ -233,13 +210,18 @@ class Routing:
 
         self.idx += 1
         pc_dist[&#34;idx&#34;] = self.idx
-        pc_dist.to_hdf(
-            self.log_file,
-            key=self.name,
-            format=&#34;table&#34;,
-            append=True,
-            index=False,
+
+        if self.log_file.exists():
+            self.distances = cudf.read_csv(self.log_file).append(pc_dist)
+        else:
+            self.distances = pc_dist[[&#34;vertex&#34;, &#34;distance&#34;, &#34;idx&#34;]]
+
+        self.distances = (
+            self.distances.sort_values(&#34;distance&#34;)
+            .drop_duplicates(&#34;vertex&#34;)
+            .reset_index()[[&#34;vertex&#34;, &#34;distance&#34;, &#34;idx&#34;]]
         )
+        self.distances.to_csv(self.log_file, index=False)
 
 
 if __name__ == &#34;__main__&#34;:
@@ -247,37 +229,33 @@ if __name__ == &#34;__main__&#34;:
     logger.debug(&#34;Reading graph and postcodes.&#34;)
 
     edges = cudf.read_parquet(Config.OS_GRAPH / &#34;edges.parquet&#34;)
-
     nodes = cudf.read_parquet(Config.OS_GRAPH / &#34;nodes.parquet&#34;)
-
-    # edges = cudf.read_hdf(Config.OS_GRAPH / &#34;edges.h5&#34;, &#34;table&#34;)
-    # nodes = cudf.read_hdf(Config.OS_GRAPH / &#34;nodes.h5&#34;, &#34;table&#34;)
     postcodes = cudf.read_parquet(Config.PROCESSED_DATA / &#34;postcodes.parquet&#34;)
 
     logger.debug(&#34;Finished reading nodes, edges and postcodes.&#34;)
 
     logger.debug(f&#34;Starting Routing for {Config.POI_LIST}.&#34;)
     for idx, poi in enumerate(Config.POI_LIST):
+        df = pd.read_parquet(Config.PROCESSED_DATA / f&#34;{poi}.parquet&#34;)
         logger.debug(f&#34;Starting routing for {poi} ({idx+1}/{len(Config.POI_LIST)}).&#34;)
         OUT_FILE = Config.OUT_DATA / f&#34;distances_{poi}.csv&#34;
 
         if not OUT_FILE.exists():
-            df = pd.read_parquet(Config.PROCESSED_DATA / f&#34;{poi}.parquet&#34;)
-
             routing = Routing(
                 name=poi,
                 edges=edges,
                 nodes=nodes,
                 postcodes=postcodes,
                 pois=df,
-                use_buffers=True,
-                weights=&#34;length&#34;,
+                weights=&#34;time_weighted&#34;,
             )
             routing.fit()
 
-            distances = routing.distances.join(
-                postcodes.set_index(&#34;node_id&#34;)
-            ).reset_index()
+            distances = (
+                routing.distances.set_index(&#34;vertex&#34;)
+                .join(postcodes.set_index(&#34;node_id&#34;), how=&#34;right&#34;)
+                .reset_index()
+            )
 
             logger.debug(f&#34;Saving distances for {poi} to {OUT_FILE}.&#34;)
             distances[[&#34;postcode&#34;, &#34;distance&#34;]].to_csv(OUT_FILE, index=False)
@@ -296,7 +274,7 @@ if __name__ == &#34;__main__&#34;:
 <dl>
 <dt id="ahah.routing.Routing"><code class="flex name class">
 <span>class <span class="ident">Routing</span></span>
-<span>(</span><span>name: str, edges: cudf.DataFrame, nodes: cudf.DataFrame, postcodes: cudf.DataFrame, pois: pd.DataFrame, weights: str = 'time_weighted', use_buffers: bool = True)</span>
+<span>(</span><span>name: str, edges: cudf.DataFrame, nodes: cudf.DataFrame, postcodes: cudf.DataFrame, pois: pd.DataFrame, weights: str = 'time_weighted', buffer: int = 25000)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Main class for calculating routing from POI to postcodes within a road network.</p>
@@ -356,19 +334,18 @@ for each postcode.</p>
         postcodes: cudf.DataFrame,
         pois: pd.DataFrame,
         weights: str = &#34;time_weighted&#34;,
-        use_buffers: bool = True,
+        buffer: int = 25_000,
     ):
         self.postcode_ids: np.ndarray = postcodes[&#34;node_id&#34;].unique().to_array()
         self.pois = pois.drop_duplicates(&#34;node_id&#34;)
 
         self.edges = edges
         self.nodes = nodes
-
         self.name = name
         self.weights = weights
-        self.use_buffers = use_buffers
+        self.buffer = buffer
 
-        if not self.use_buffers:
+        if not self.buffer:
             self.graph = cugraph.Graph()
             self.graph.from_cudf_edgelist(
                 self.edges,
@@ -377,19 +354,15 @@ for each postcode.</p>
                 edge_attr=self.weights,
             )
 
-        self.log_file = Config.OUT_DATA / &#34;logs&#34; / f&#34;{self.name}_intermediate.h5&#34;
+        self.log_file = Config.OUT_DATA / &#34;logs&#34; / f&#34;{self.name}_intermediate.csv&#34;
 
         if self.log_file.exists():
             logger.warning(&#34;Resuming from a previous run.&#34;)
-            with warnings.catch_warnings():
-                warnings.filterwarnings(&#34;ignore&#34;, category=UserWarning)
-                # -1 in case program stopped while saving to hdf
-                self.idx = (
-                    dd.read_hdf(self.log_file, key=self.name)[&#34;idx&#34;].max().compute() - 1
-                )
-                logger.warning(
-                    f&#34;Run resumed at {self.idx / len(self.pois) * 100:.2f}% ({self.idx} / {len(self.pois)})&#34;
-                )
+            self.idx = cudf.read_csv(self.log_file)[&#34;idx&#34;].max() - 1
+            logger.warning(
+                f&#34;Run resumed at {self.idx / len(self.pois) * 100:.2f}%&#34;
+                f&#34; ({self.idx} / {len(self.pois)})&#34;
+            )
         else:
             self.idx = 0
 
@@ -413,24 +386,6 @@ for each postcode.</p>
             f&#34;Routing complete for {self.name} in {tdiff / 60:.2f} minutes,&#34;
             &#34; finding minimum distances.&#34;
         )
-
-        t1 = time.time()
-        self.distances = (
-            dd.read_hdf(
-                self.log_file,
-                key=f&#34;{self.name}&#34;,
-                columns=[&#34;vertex&#34;, &#34;distance&#34;],
-            )
-            .map_partitions(cudf.from_pandas)
-            .groupby(&#34;vertex&#34;)
-            .min()
-            .compute()
-        )
-        t2 = time.time()
-        tdiff = t2 - t1
-        logger.debug(
-            f&#34;Found minimum distances for {self.name} in {tdiff / 60:.2f} minutes.&#34;
-        )
         self.log_file.unlink()
 
     def create_sub_graph(self, poi) -&gt; cugraph.Graph:
@@ -452,8 +407,7 @@ for each postcode.</p>
         cugraph.Graph:
             Graph object that is a subset of all road nodes
         &#34;&#34;&#34;
-        # very small buffers do not work well
-        buffer = poi.buffer if poi.buffer &gt;= 1000 else 1000
+        buffer = max(poi.buffer, self.buffer)
         while True:
             node_subset = cuspatial.points_in_spatial_window(
                 min_x=poi.easting - buffer,
@@ -482,17 +436,17 @@ for each postcode.</p>
                 destination=&#34;target&#34;,
                 edge_attr=self.weights,
             )
-
             pc_nodes = cudf.Series(poi.pc_node).isin(sub_graph.nodes()).sum()
             poi_node = sub_graph.nodes().isin([poi.node_id]).sum()
 
             # ensure all postcode nodes in + poi node
-            if (poi_node) &amp; (pc_nodes == len(poi.pc_node)):
+            # don&#39;t incrase buffer for large pois lists
+            if poi_node &amp; (pc_nodes == len(poi.pc_node)):
                 return sub_graph
-            buffer = (buffer + 100) * 2
+            buffer = buffer * 2
             logger.debug(f&#34;{poi.Index=}: increasing {buffer=}&#34;)
 
-    def get_shortest_dists(self, poi):
+    def get_shortest_dists(self, poi: namedtuple) -&gt; None:
         &#34;&#34;&#34;
         Use `cugraph.sssp` to calculate shortest paths from POI to postcodes
 
@@ -505,7 +459,7 @@ for each postcode.</p>
         poi : namedtuple
             Single POI created from `df.itertuples()`
         &#34;&#34;&#34;
-        if self.use_buffers:
+        if self.buffer:
             self.graph = self.create_sub_graph(poi=poi)
 
         shortest_paths: cudf.DataFrame = cugraph.filter_unreachable(
@@ -515,13 +469,18 @@ for each postcode.</p>
 
         self.idx += 1
         pc_dist[&#34;idx&#34;] = self.idx
-        pc_dist.to_hdf(
-            self.log_file,
-            key=self.name,
-            format=&#34;table&#34;,
-            append=True,
-            index=False,
-        )</code></pre>
+
+        if self.log_file.exists():
+            self.distances = cudf.read_csv(self.log_file).append(pc_dist)
+        else:
+            self.distances = pc_dist[[&#34;vertex&#34;, &#34;distance&#34;, &#34;idx&#34;]]
+
+        self.distances = (
+            self.distances.sort_values(&#34;distance&#34;)
+            .drop_duplicates(&#34;vertex&#34;)
+            .reset_index()[[&#34;vertex&#34;, &#34;distance&#34;, &#34;idx&#34;]]
+        )
+        self.distances.to_csv(self.log_file, index=False)</code></pre>
 </details>
 <h3>Methods</h3>
 <dl>
@@ -567,8 +526,7 @@ increased in size.</p>
     cugraph.Graph:
         Graph object that is a subset of all road nodes
     &#34;&#34;&#34;
-    # very small buffers do not work well
-    buffer = poi.buffer if poi.buffer &gt;= 1000 else 1000
+    buffer = max(poi.buffer, self.buffer)
     while True:
         node_subset = cuspatial.points_in_spatial_window(
             min_x=poi.easting - buffer,
@@ -597,14 +555,14 @@ increased in size.</p>
             destination=&#34;target&#34;,
             edge_attr=self.weights,
         )
-
         pc_nodes = cudf.Series(poi.pc_node).isin(sub_graph.nodes()).sum()
         poi_node = sub_graph.nodes().isin([poi.node_id]).sum()
 
         # ensure all postcode nodes in + poi node
-        if (poi_node) &amp; (pc_nodes == len(poi.pc_node)):
+        # don&#39;t incrase buffer for large pois lists
+        if poi_node &amp; (pc_nodes == len(poi.pc_node)):
             return sub_graph
-        buffer = (buffer + 100) * 2
+        buffer = buffer * 2
         logger.debug(f&#34;{poi.Index=}: increasing {buffer=}&#34;)</code></pre>
 </details>
 </dd>
@@ -639,29 +597,11 @@ logged. This means that if the routing is stopped midway it can be restarted.</p
         f&#34;Routing complete for {self.name} in {tdiff / 60:.2f} minutes,&#34;
         &#34; finding minimum distances.&#34;
     )
-
-    t1 = time.time()
-    self.distances = (
-        dd.read_hdf(
-            self.log_file,
-            key=f&#34;{self.name}&#34;,
-            columns=[&#34;vertex&#34;, &#34;distance&#34;],
-        )
-        .map_partitions(cudf.from_pandas)
-        .groupby(&#34;vertex&#34;)
-        .min()
-        .compute()
-    )
-    t2 = time.time()
-    tdiff = t2 - t1
-    logger.debug(
-        f&#34;Found minimum distances for {self.name} in {tdiff / 60:.2f} minutes.&#34;
-    )
     self.log_file.unlink()</code></pre>
 </details>
 </dd>
 <dt id="ahah.routing.Routing.get_shortest_dists"><code class="name flex">
-<span>def <span class="ident">get_shortest_dists</span></span>(<span>self, poi)</span>
+<span>def <span class="ident">get_shortest_dists</span></span>(<span>self, poi: namedtuple) ‑> NoneType</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Use <code>cugraph.sssp</code> to calculate shortest paths from POI to postcodes</p>
@@ -677,7 +617,7 @@ restarts.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_shortest_dists(self, poi):
+<pre><code class="python">def get_shortest_dists(self, poi: namedtuple) -&gt; None:
     &#34;&#34;&#34;
     Use `cugraph.sssp` to calculate shortest paths from POI to postcodes
 
@@ -690,7 +630,7 @@ restarts.</p>
     poi : namedtuple
         Single POI created from `df.itertuples()`
     &#34;&#34;&#34;
-    if self.use_buffers:
+    if self.buffer:
         self.graph = self.create_sub_graph(poi=poi)
 
     shortest_paths: cudf.DataFrame = cugraph.filter_unreachable(
@@ -700,13 +640,18 @@ restarts.</p>
 
     self.idx += 1
     pc_dist[&#34;idx&#34;] = self.idx
-    pc_dist.to_hdf(
-        self.log_file,
-        key=self.name,
-        format=&#34;table&#34;,
-        append=True,
-        index=False,
-    )</code></pre>
+
+    if self.log_file.exists():
+        self.distances = cudf.read_csv(self.log_file).append(pc_dist)
+    else:
+        self.distances = pc_dist[[&#34;vertex&#34;, &#34;distance&#34;, &#34;idx&#34;]]
+
+    self.distances = (
+        self.distances.sort_values(&#34;distance&#34;)
+        .drop_duplicates(&#34;vertex&#34;)
+        .reset_index()[[&#34;vertex&#34;, &#34;distance&#34;, &#34;idx&#34;]]
+    )
+    self.distances.to_csv(self.log_file, index=False)</code></pre>
 </details>
 </dd>
 </dl>

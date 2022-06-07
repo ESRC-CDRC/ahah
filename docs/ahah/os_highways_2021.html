@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.9.2" />
-<title>ahah.process_air API documentation</title>
+<title>ahah.os_highways_2021 API documentation</title>
 <meta name="description" content="" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
@@ -19,84 +19,98 @@
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>ahah.process_air</code></h1>
+<h1 class="title">Module <code>ahah.os_highways_2021</code></h1>
 </header>
 <section id="section-intro">
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">import geopandas as gpd
-import numpy as np
+<pre><code class="python">import cudf
+import geopandas as gpd
+import momepy
+import networkx as nx
 import pandas as pd
-from ahah.common.logger import logger
-from ahah.common.utils import Config, clean_air
-from scipy.interpolate import griddata
-from shapely.geometry import Polygon
+from ahah.common.utils import Config
+from tqdm import tqdm
 
-GRID_SIZE = 1000
+NODES_PATH = (
+    Config.RAW_DATA / &#34;os_highways&#34; / &#34;MasterMap Highways Network_rami_4144468&#34;
+).glob(&#34;Highways_Rrami_RoadNode_*.gml.gz&#34;)
+
+EDGES_PATH = (
+    Config.RAW_DATA / &#34;os_highways&#34; / &#34;MasterMap Highways Network_rami_4144468&#34;
+).glob(&#34;Highways_Rrami_RoadLink_*.gml.gz&#34;)
+
+EDGES_OUT = Config.PROCESSED_DATA / &#34;osm&#34; / &#34;edges.h5&#34;
+NODES_OUT = Config.PROCESSED_DATA / &#34;osm&#34; / &#34;nodes.h5&#34;
 
 
-def create_polygon(x: float, y: float, grid_size: int):
-    return Polygon(
+def process_nodes(nodes_path):
+    nodes = pd.concat(
         [
-            [x, y],
-            [x + grid_size, y],
-            [x + grid_size, y + grid_size],
-            [x, y + grid_size],
-            [x, y],
+            gpd.read_file(file, usecols=[&#34;gml_id&#34;, &#34;geometry&#34;])
+            for file in tqdm(list(nodes_path))
         ]
+    ).pipe(gpd.GeoDataFrame)
+    nodes[&#34;easting&#34;], nodes[&#34;northing&#34;] = (nodes.geometry.x, nodes.geometry.y)
+    nodes = nodes.drop(&#34;geometry&#34;, axis=1)
+    nodes = cudf.from_pandas(nodes)
+    return nodes
+
+
+def process_edges(file, nodes):
+    G = momepy.gdf_to_nx(gpd.read_file(file))
+    edges = nx.to_pandas_edgelist(G)
+    edges_length = len(edges)
+
+    edges = edges[[&#34;source&#34;, &#34;target&#34;, &#34;routeHierarchy&#34;, &#34;formOfWay&#34;, &#34;length&#34;]]
+    edges = edges.join(
+        pd.DataFrame(
+            edges[&#34;source&#34;].tolist(),
+            columns=[&#34;source_easting&#34;, &#34;source_northing&#34;, &#34;source_length&#34;],
+        )
+    )
+    edges = edges.join(
+        pd.DataFrame(
+            edges[&#34;target&#34;].tolist(),
+            columns=[&#34;target_easting&#34;, &#34;target_northing&#34;, &#34;target_length&#34;],
+        )
+    )
+    edges = edges.drop([&#34;source&#34;, &#34;target&#34;], axis=1)
+
+    edges = (
+        cudf.from_pandas(edges)
+        .merge(
+            nodes,
+            left_on=[&#34;source_easting&#34;, &#34;source_northing&#34;],
+            right_on=[&#34;easting&#34;, &#34;northing&#34;],
+        )
+        .rename(columns={&#34;gml_id&#34;: &#34;source&#34;})
     )
 
+    edges = edges.merge(
+        nodes,
+        left_on=[&#34;target_easting&#34;, &#34;target_northing&#34;],
+        right_on=[&#34;easting&#34;, &#34;northing&#34;],
+    ).rename(columns={&#34;gml_id&#34;: &#34;target&#34;})
 
-def interpolate_air(
-    air: pd.DataFrame, col: str, lsoa: gpd.GeoDataFrame, grid_size: int
-):
-    logger.debug(f&#34;Interpolating air: {col}&#34;)
-    grid_x, grid_y = np.mgrid[  # type:ignore
-        0 : max(air.x) : grid_size, 0 : max(air.y) : grid_size
-    ]
-    grid_z = griddata(
-        points=air[[&#34;x&#34;, &#34;y&#34;]].astype(&#34;int&#34;).to_numpy(),
-        values=air[col].values,
-        xi=(grid_x, grid_y),
-        method=&#34;nearest&#34;,
-    )
-
-    grid_x = grid_x.flatten()
-    grid_y = grid_y.flatten()
-    grid_z = grid_z.flatten()
-
-    grid_df = pd.DataFrame({&#34;x&#34;: grid_x, &#34;y&#34;: grid_y, col: grid_z})
-
-    grid_df[&#34;geometry&#34;] = pd.Series(
-        [create_polygon(row.x, row.y, grid_size) for row in grid_df.itertuples()]
-    )
-
-    grid_gdf = gpd.GeoDataFrame(grid_df, geometry=&#34;geometry&#34;, crs=27700)
-    return gpd.sjoin(grid_gdf, lsoa).groupby(&#34;code&#34;)[col].mean()
+    edges = edges[[&#34;source&#34;, &#34;target&#34;, &#34;length&#34;]]
+    assert len(edges) == edges_length
+    return edges
 
 
 if __name__ == &#34;__main__&#34;:
-    logger.info(&#34;Starting air quality processing...&#34;)
+    nodes = process_nodes(nodes_path=NODES_PATH)
 
-    lsoa: gpd.GeoDataFrame = gpd.read_file(
-        Config.RAW_DATA / &#34;lsoa/england_lsoa_2011.shp&#34;
-    )
+    EDGES_OUT.exists() and EDGES_OUT.unlink()
+    for file in tqdm(list(EDGES_PATH)):
+        process_edges(file=file, nodes=nodes).to_hdf(EDGES_OUT, &#34;table&#34;, append=True)
 
-    no = clean_air(path=Config.RAW_DATA / &#34;air/mapno22019.csv&#34;, col=&#34;no22019&#34;)
-    so = clean_air(path=Config.RAW_DATA / &#34;air/mapso22019.csv&#34;, col=&#34;so22019&#34;)
-    pm = clean_air(path=Config.RAW_DATA / &#34;air/mappm102019g.csv&#34;, col=&#34;pm102019g&#34;)
-    no = interpolate_air(air=no, col=&#34;no22019&#34;, lsoa=lsoa, grid_size=GRID_SIZE)
-    so = interpolate_air(air=so, col=&#34;so22019&#34;, lsoa=lsoa, grid_size=GRID_SIZE)
-    pm = interpolate_air(air=pm, col=&#34;pm102019g&#34;, lsoa=lsoa, grid_size=GRID_SIZE)
-
-    logger.debug(f&#34;Saving air dataframe to {Config.OUT_DATA / &#39;lsoa_air.csv&#39;}&#34;)
-    air_dfs = [pd.DataFrame(df) for df in [no, so, pm]]
-    lsoa_air = lsoa.set_index(&#34;code&#34;).join(air_dfs)
-    lsoa_air[[&#34;name&#34;, &#34;no22019&#34;, &#34;so22019&#34;, &#34;pm102019g&#34;]].to_csv(
-        Config.OUT_DATA / &#34;lsoa_air.csv&#34;, index=False
-    )</code></pre>
+    NODES_OUT.exists() and NODES_OUT.unlink()
+    nodes[[&#34;gml_id&#34;, &#34;easting&#34;, &#34;northing&#34;]].rename(
+        columns={&#34;gml_id&#34;: &#34;node_id&#34;}
+    ).to_hdf(NODES_OUT, &#34;table&#34;)</code></pre>
 </details>
 </section>
 <section>
@@ -106,8 +120,8 @@ if __name__ == &#34;__main__&#34;:
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="ahah.process_air.create_polygon"><code class="name flex">
-<span>def <span class="ident">create_polygon</span></span>(<span>x: float, y: float, grid_size: int)</span>
+<dt id="ahah.os_highways_2021.process_edges"><code class="name flex">
+<span>def <span class="ident">process_edges</span></span>(<span>file, nodes)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -115,20 +129,49 @@ if __name__ == &#34;__main__&#34;:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def create_polygon(x: float, y: float, grid_size: int):
-    return Polygon(
-        [
-            [x, y],
-            [x + grid_size, y],
-            [x + grid_size, y + grid_size],
-            [x, y + grid_size],
-            [x, y],
-        ]
-    )</code></pre>
+<pre><code class="python">def process_edges(file, nodes):
+    G = momepy.gdf_to_nx(gpd.read_file(file))
+    edges = nx.to_pandas_edgelist(G)
+    edges_length = len(edges)
+
+    edges = edges[[&#34;source&#34;, &#34;target&#34;, &#34;routeHierarchy&#34;, &#34;formOfWay&#34;, &#34;length&#34;]]
+    edges = edges.join(
+        pd.DataFrame(
+            edges[&#34;source&#34;].tolist(),
+            columns=[&#34;source_easting&#34;, &#34;source_northing&#34;, &#34;source_length&#34;],
+        )
+    )
+    edges = edges.join(
+        pd.DataFrame(
+            edges[&#34;target&#34;].tolist(),
+            columns=[&#34;target_easting&#34;, &#34;target_northing&#34;, &#34;target_length&#34;],
+        )
+    )
+    edges = edges.drop([&#34;source&#34;, &#34;target&#34;], axis=1)
+
+    edges = (
+        cudf.from_pandas(edges)
+        .merge(
+            nodes,
+            left_on=[&#34;source_easting&#34;, &#34;source_northing&#34;],
+            right_on=[&#34;easting&#34;, &#34;northing&#34;],
+        )
+        .rename(columns={&#34;gml_id&#34;: &#34;source&#34;})
+    )
+
+    edges = edges.merge(
+        nodes,
+        left_on=[&#34;target_easting&#34;, &#34;target_northing&#34;],
+        right_on=[&#34;easting&#34;, &#34;northing&#34;],
+    ).rename(columns={&#34;gml_id&#34;: &#34;target&#34;})
+
+    edges = edges[[&#34;source&#34;, &#34;target&#34;, &#34;length&#34;]]
+    assert len(edges) == edges_length
+    return edges</code></pre>
 </details>
 </dd>
-<dt id="ahah.process_air.interpolate_air"><code class="name flex">
-<span>def <span class="ident">interpolate_air</span></span>(<span>air: pandas.core.frame.DataFrame, col: str, lsoa: geopandas.geodataframe.GeoDataFrame, grid_size: int)</span>
+<dt id="ahah.os_highways_2021.process_nodes"><code class="name flex">
+<span>def <span class="ident">process_nodes</span></span>(<span>nodes_path)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -136,32 +179,17 @@ if __name__ == &#34;__main__&#34;:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def interpolate_air(
-    air: pd.DataFrame, col: str, lsoa: gpd.GeoDataFrame, grid_size: int
-):
-    logger.debug(f&#34;Interpolating air: {col}&#34;)
-    grid_x, grid_y = np.mgrid[  # type:ignore
-        0 : max(air.x) : grid_size, 0 : max(air.y) : grid_size
-    ]
-    grid_z = griddata(
-        points=air[[&#34;x&#34;, &#34;y&#34;]].astype(&#34;int&#34;).to_numpy(),
-        values=air[col].values,
-        xi=(grid_x, grid_y),
-        method=&#34;nearest&#34;,
-    )
-
-    grid_x = grid_x.flatten()
-    grid_y = grid_y.flatten()
-    grid_z = grid_z.flatten()
-
-    grid_df = pd.DataFrame({&#34;x&#34;: grid_x, &#34;y&#34;: grid_y, col: grid_z})
-
-    grid_df[&#34;geometry&#34;] = pd.Series(
-        [create_polygon(row.x, row.y, grid_size) for row in grid_df.itertuples()]
-    )
-
-    grid_gdf = gpd.GeoDataFrame(grid_df, geometry=&#34;geometry&#34;, crs=27700)
-    return gpd.sjoin(grid_gdf, lsoa).groupby(&#34;code&#34;)[col].mean()</code></pre>
+<pre><code class="python">def process_nodes(nodes_path):
+    nodes = pd.concat(
+        [
+            gpd.read_file(file, usecols=[&#34;gml_id&#34;, &#34;geometry&#34;])
+            for file in tqdm(list(nodes_path))
+        ]
+    ).pipe(gpd.GeoDataFrame)
+    nodes[&#34;easting&#34;], nodes[&#34;northing&#34;] = (nodes.geometry.x, nodes.geometry.y)
+    nodes = nodes.drop(&#34;geometry&#34;, axis=1)
+    nodes = cudf.from_pandas(nodes)
+    return nodes</code></pre>
 </details>
 </dd>
 </dl>
@@ -182,8 +210,8 @@ if __name__ == &#34;__main__&#34;:
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="ahah.process_air.create_polygon" href="#ahah.process_air.create_polygon">create_polygon</a></code></li>
-<li><code><a title="ahah.process_air.interpolate_air" href="#ahah.process_air.interpolate_air">interpolate_air</a></code></li>
+<li><code><a title="ahah.os_highways_2021.process_edges" href="#ahah.os_highways_2021.process_edges">process_edges</a></code></li>
+<li><code><a title="ahah.os_highways_2021.process_nodes" href="#ahah.os_highways_2021.process_nodes">process_nodes</a></code></li>
 </ul>
 </li>
 </ul>

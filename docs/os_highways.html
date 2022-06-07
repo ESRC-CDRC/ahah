@@ -29,10 +29,11 @@
 <pre><code class="python">import cudf
 import geopandas as gpd
 import pandas as pd
+from cuml.neighbors.nearest_neighbors import NearestNeighbors
+from pandas import IndexSlice as idx
+
 from ahah.common.logger import logger
 from ahah.common.utils import Config
-from pandas import IndexSlice as idx
-from rich.progress import track
 
 
 def process_edges(edges: pd.DataFrame) -&gt; pd.DataFrame:
@@ -56,14 +57,13 @@ def process_edges(edges: pd.DataFrame) -&gt; pd.DataFrame:
     b_roads = [&#34;B Road&#34;, &#34;B Road Primary&#34;]
 
     edges[&#34;speed_estimate&#34;] = -1
-    edges = edges.set_index([&#34;formOfWay&#34;, &#34;routeHierarchy&#34;])
+    edges = edges.set_index([&#34;formOfWay&#34;, &#34;roadClassification&#34;])
 
     edges.loc[idx[:, &#34;Motorway&#34;], &#34;speed_estimate&#34;] = 67
     edges.loc[idx[&#34;Dual Carriageway&#34;, a_roads], &#34;speed_estimate&#34;] = 57
     edges.loc[idx[&#34;Dual Carriageway&#34;, b_roads], &#34;speed_estimate&#34;] = 45
     edges.loc[idx[&#34;Single Carriageway&#34;, a_roads + b_roads], &#34;speed_estimate&#34;] = 25
-    edges.loc[idx[:, &#34;Minor Road&#34;], &#34;speed_estimate&#34;] = 24
-    edges.loc[idx[:, &#34;Local Road&#34;], &#34;speed_estimate&#34;] = 20
+    edges.loc[idx[:, &#34;Unclassified&#34;], &#34;speed_estimate&#34;] = 24
     edges.loc[idx[&#34;Roundabout&#34;, :], &#34;speed_estimate&#34;] = 10
     edges.loc[idx[[&#34;Track&#34;, &#34;Layby&#34;], :], &#34;speed_estimate&#34;] = 5
     edges.loc[edges[&#34;speed_estimate&#34;] == -1, &#34;speed_estimate&#34;] = 10
@@ -78,56 +78,126 @@ def process_edges(edges: pd.DataFrame) -&gt; pd.DataFrame:
     return edges[[&#34;startNode&#34;, &#34;endNode&#34;, &#34;time_weighted&#34;, &#34;length&#34;]]
 
 
+def process_ferry(ferry_df):
+    ferry_df[&#34;node_id&#34;] = ferry_df.geometry.boundary.apply(lambda row: row.geoms)
+
+    ferry_nodes = (
+        ferry_df[&#34;node_id&#34;]
+        .explode()
+        .drop_duplicates()
+        .reset_index(drop=True)
+        .to_frame()
+    )
+    ferry_nodes[&#34;easting&#34;] = ferry_nodes[&#34;node_id&#34;].apply(lambda row: row.x)
+    ferry_nodes[&#34;northing&#34;] = ferry_nodes[&#34;node_id&#34;].apply(lambda row: row.y)
+
+    ferry_edges = ferry_df[[&#34;node_id&#34;, &#34;geometry&#34;]].copy()
+    ferry_edges[&#34;startNode&#34;] = ferry_edges[&#34;node_id&#34;].apply(lambda row: row[0])
+    ferry_edges[&#34;endNode&#34;] = ferry_edges[&#34;node_id&#34;].apply(lambda row: row[1])
+    ferry_edges[&#34;length&#34;] = ferry_edges.geometry.length
+    ferry_edges = ferry_edges.assign(
+        time_weighted=(ferry_edges[&#34;length&#34;].astype(float) / 1000) / 25 * 1.609344 * 60
+    )
+
+    ferry_nodes[&#34;node_id&#34;] = ferry_nodes[&#34;node_id&#34;].astype(str)
+    ferry_nodes = cudf.from_pandas(ferry_nodes[[&#34;node_id&#34;, &#34;easting&#34;, &#34;northing&#34;]])
+    ferry_edges[&#34;startNode&#34;] = ferry_edges[&#34;startNode&#34;].astype(str)
+    ferry_edges[&#34;endNode&#34;] = ferry_edges[&#34;endNode&#34;].astype(str)
+    ferry_edges = cudf.from_pandas(
+        ferry_edges.rename(columns={&#34;FERRY_FROM&#34;: &#34;startNode&#34;, &#34;FERRY_TO&#34;: &#34;endNode&#34;})[
+            [&#34;startNode&#34;, &#34;endNode&#34;, &#34;length&#34;, &#34;time_weighted&#34;]
+        ]
+    )
+    return ferry_nodes, ferry_edges
+
+
+def change_ferry_nodes(nodes_df, fnodes, fedges):
+    nbrs = NearestNeighbors(n_neighbors=1, output_type=&#34;cudf&#34;, algorithm=&#34;brute&#34;).fit(
+        nodes_df[[&#34;easting&#34;, &#34;northing&#34;]]
+    )
+    _, indices = nbrs.kneighbors(fnodes[[&#34;easting&#34;, &#34;northing&#34;]])
+    fnodes[&#34;road_id&#34;] = nodes_df.iloc[indices][&#34;node_id&#34;].reset_index(drop=True)
+
+    fedges = (
+        fedges.merge(
+            fnodes[[&#34;node_id&#34;, &#34;road_id&#34;]],
+            left_on=&#34;startNode&#34;,
+            right_on=&#34;node_id&#34;,
+        )
+        .rename(columns={&#34;road_id&#34;: &#34;startNode&#34;})
+        .drop(&#34;node_id&#34;, axis=1)
+    )
+
+    fedges = (
+        fedges.merge(
+            fnodes[[&#34;node_id&#34;, &#34;road_id&#34;]],
+            left_on=&#34;endNode&#34;,
+            right_on=&#34;node_id&#34;,
+        )
+        .rename(columns={&#34;road_id&#34;: &#34;endNode&#34;})
+        .drop(&#34;node_id&#34;, axis=1)
+    )
+
+    fnodes = fnodes[[&#34;road_id&#34;, &#34;easting&#34;, &#34;northing&#34;]].rename(
+        columns={&#34;road_id&#34;: &#34;node_id&#34;}
+    )
+    return fnodes, fedges
+
+
 if __name__ == &#34;__main__&#34;:
     logger.info(&#34;Starting OS highways processing...&#34;)
 
-    HW_DATA = Config.RAW_DATA / &#34;os_highways&#34; / &#34;Highways_Data_March19.gdb.zip&#34;
-    NUM_EDGES = 5_062_741
-    NUM_NODES = 4_289_045
-
-    # for both edges and nodes I subset by 100k rows as they are too large to
-    # read directly into memory. There may be a better way.
-
-    # edges processing
-    edges = cudf.DataFrame()
-    for n in track(range(0, NUM_EDGES, 100_000), description=&#34;Processing edges...&#34;):
-        subset_edges = gpd.read_file(
-            HW_DATA,
+    edges = cudf.from_pandas(
+        gpd.read_file(
+            Config.HW_DATA,
             layer=&#34;RoadLink&#34;,
-            rows=slice(n, n + 100_000),
             ignore_geometry=True,
         ).pipe(process_edges)
-        edges: cudf.DataFrame = edges.append(cudf.from_pandas(subset_edges))
-    logger.debug(&#34;Edges processed.&#34;)
+    )
+    nodes = gpd.read_file(Config.HW_DATA, layer=&#34;RoadNode&#34;)
+    nodes[&#34;easting&#34;], nodes[&#34;northing&#34;] = nodes.geometry.x, nodes.geometry.y
+    nodes = cudf.from_pandas(
+        nodes[[&#34;id&#34;, &#34;easting&#34;, &#34;northing&#34;]].rename(columns={&#34;id&#34;: &#34;node_id&#34;})
+    )
+    ferry = gpd.read_file(
+        &#34;./data/raw/os_highways/strtgi_essh_gb/ferry_line.shp&#34;,
+    )[[&#34;FERRY_FROM&#34;, &#34;FERRY_TO&#34;, &#34;geometry&#34;]]
+    ferry_nodes, ferry_edges = process_ferry(ferry)
 
-    # nodes processing
-    nodes = cudf.DataFrame()
-    for n in track(range(0, NUM_NODES, 100_000), description=&#34;Processing nodes...&#34;):
-        subset_nodes = gpd.read_file(
-            HW_DATA,
-            layer=&#34;RoadNode&#34;,
-            rows=slice(n, n + 100_000),
-        )
-        subset_nodes[&#34;easting&#34;], subset_nodes[&#34;northing&#34;] = (
-            subset_nodes.geometry.x.astype(&#34;int&#34;),
-            subset_nodes.geometry.y.astype(&#34;int&#34;),
-        )
-        subset_nodes.drop(&#34;geometry&#34;, axis=1, inplace=True)
-        nodes: cudf.DataFrame = nodes.append(cudf.from_pandas(subset_nodes))
-    logger.debug(&#34;Nodes processed.&#34;)
+    # for some reason the isles of scilly do not have a ferry route
+    extra_ferry_nodes = {
+        &#34;node_id&#34;: [&#34;scilly&#34;, &#34;penz&#34;],
+        &#34;easting&#34;: [90139, 147432],
+        &#34;northing&#34;: [10633, 30086],
+    }
+    extra_ferry_edges = {
+        &#34;startNode&#34;: [&#34;penz&#34;, &#34;scilly&#34;],
+        &#34;endNode&#34;: [&#34;scilly&#34;, &#34;penz&#34;],
+        &#34;length&#34;: [165, 165],
+        &#34;time_weighted&#34;: [165, 165],
+    }
+    ferry_nodes = ferry_nodes.append(extra_ferry_nodes, ignore_index=True)
+    ferry_edges = ferry_edges.append(extra_ferry_edges, ignore_index=True)
 
-    nodes[&#34;node_id&#34;] = nodes[&#34;TOID&#34;]
+    ferry_nodes, ferry_edges = change_ferry_nodes(nodes, ferry_nodes, ferry_edges)
 
-    edges = edges.merge(
-        nodes[[&#34;node_id&#34;, &#34;TOID&#34;]], left_on=&#34;startNode&#34;, right_on=&#34;TOID&#34;
-    ).rename(columns={&#34;node_id&#34;: &#34;source&#34;})
-    edges = edges.merge(
-        nodes[[&#34;node_id&#34;, &#34;TOID&#34;]], left_on=&#34;endNode&#34;, right_on=&#34;TOID&#34;
-    ).rename(columns={&#34;node_id&#34;: &#34;target&#34;})
+    nodes = nodes[[&#34;node_id&#34;, &#34;easting&#34;, &#34;northing&#34;]].append(ferry_nodes)
+    edges = edges.reset_index(drop=True).append(ferry_edges)
+
+    # convert to sequential ints
+    nodes[&#34;node_id&#34;] = nodes[&#34;node_id&#34;].astype(&#34;category&#34;)
+    node_ids = dict(enumerate(nodes[&#34;node_id&#34;].cat.categories.to_pandas()))
+    node_ids = {v: k for k, v in node_ids.items()}
+    nodes[&#34;node_id&#34;] = nodes[&#34;node_id&#34;].astype(&#34;str&#34;).map(node_ids).astype(int)
+
+    edges[&#34;source&#34;] = edges[&#34;startNode&#34;].map(node_ids).astype(int)
+    edges[&#34;target&#34;] = edges[&#34;endNode&#34;].map(node_ids).astype(int)
 
     nodes[Config.NODE_COLS].to_parquet(Config.OS_GRAPH / &#34;nodes.parquet&#34;, index=False)
     logger.debug(f&#34;Nodes saved to {Config.OS_GRAPH / &#39;nodes.parquet&#39;}&#34;)
-    edges[Config.EDGE_COLS].to_parquet(Config.OS_GRAPH / &#34;edges.parquet&#34;, index=False)
+    edges.reset_index()[Config.EDGE_COLS].to_parquet(
+        Config.OS_GRAPH / &#34;edges.parquet&#34;, index=False
+    )
     logger.debug(f&#34;Edges saved to {Config.OS_GRAPH / &#39;edges.parquet&#39;}&#34;)</code></pre>
 </details>
 </section>
@@ -138,6 +208,48 @@ if __name__ == &#34;__main__&#34;:
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="ahah.os_highways.change_ferry_nodes"><code class="name flex">
+<span>def <span class="ident">change_ferry_nodes</span></span>(<span>nodes_df, fnodes, fedges)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def change_ferry_nodes(nodes_df, fnodes, fedges):
+    nbrs = NearestNeighbors(n_neighbors=1, output_type=&#34;cudf&#34;, algorithm=&#34;brute&#34;).fit(
+        nodes_df[[&#34;easting&#34;, &#34;northing&#34;]]
+    )
+    _, indices = nbrs.kneighbors(fnodes[[&#34;easting&#34;, &#34;northing&#34;]])
+    fnodes[&#34;road_id&#34;] = nodes_df.iloc[indices][&#34;node_id&#34;].reset_index(drop=True)
+
+    fedges = (
+        fedges.merge(
+            fnodes[[&#34;node_id&#34;, &#34;road_id&#34;]],
+            left_on=&#34;startNode&#34;,
+            right_on=&#34;node_id&#34;,
+        )
+        .rename(columns={&#34;road_id&#34;: &#34;startNode&#34;})
+        .drop(&#34;node_id&#34;, axis=1)
+    )
+
+    fedges = (
+        fedges.merge(
+            fnodes[[&#34;node_id&#34;, &#34;road_id&#34;]],
+            left_on=&#34;endNode&#34;,
+            right_on=&#34;node_id&#34;,
+        )
+        .rename(columns={&#34;road_id&#34;: &#34;endNode&#34;})
+        .drop(&#34;node_id&#34;, axis=1)
+    )
+
+    fnodes = fnodes[[&#34;road_id&#34;, &#34;easting&#34;, &#34;northing&#34;]].rename(
+        columns={&#34;road_id&#34;: &#34;node_id&#34;}
+    )
+    return fnodes, fedges</code></pre>
+</details>
+</dd>
 <dt id="ahah.os_highways.process_edges"><code class="name flex">
 <span>def <span class="ident">process_edges</span></span>(<span>edges: pandas.core.frame.DataFrame) ‑> pandas.core.frame.DataFrame</span>
 </code></dt>
@@ -180,14 +292,13 @@ taken from OS documentation. This also filters to remove extra cols.</p>
     b_roads = [&#34;B Road&#34;, &#34;B Road Primary&#34;]
 
     edges[&#34;speed_estimate&#34;] = -1
-    edges = edges.set_index([&#34;formOfWay&#34;, &#34;routeHierarchy&#34;])
+    edges = edges.set_index([&#34;formOfWay&#34;, &#34;roadClassification&#34;])
 
     edges.loc[idx[:, &#34;Motorway&#34;], &#34;speed_estimate&#34;] = 67
     edges.loc[idx[&#34;Dual Carriageway&#34;, a_roads], &#34;speed_estimate&#34;] = 57
     edges.loc[idx[&#34;Dual Carriageway&#34;, b_roads], &#34;speed_estimate&#34;] = 45
     edges.loc[idx[&#34;Single Carriageway&#34;, a_roads + b_roads], &#34;speed_estimate&#34;] = 25
-    edges.loc[idx[:, &#34;Minor Road&#34;], &#34;speed_estimate&#34;] = 24
-    edges.loc[idx[:, &#34;Local Road&#34;], &#34;speed_estimate&#34;] = 20
+    edges.loc[idx[:, &#34;Unclassified&#34;], &#34;speed_estimate&#34;] = 24
     edges.loc[idx[&#34;Roundabout&#34;, :], &#34;speed_estimate&#34;] = 10
     edges.loc[idx[[&#34;Track&#34;, &#34;Layby&#34;], :], &#34;speed_estimate&#34;] = 5
     edges.loc[edges[&#34;speed_estimate&#34;] == -1, &#34;speed_estimate&#34;] = 10
@@ -200,6 +311,48 @@ taken from OS documentation. This also filters to remove extra cols.</p>
     )
 
     return edges[[&#34;startNode&#34;, &#34;endNode&#34;, &#34;time_weighted&#34;, &#34;length&#34;]]</code></pre>
+</details>
+</dd>
+<dt id="ahah.os_highways.process_ferry"><code class="name flex">
+<span>def <span class="ident">process_ferry</span></span>(<span>ferry_df)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def process_ferry(ferry_df):
+    ferry_df[&#34;node_id&#34;] = ferry_df.geometry.boundary.apply(lambda row: row.geoms)
+
+    ferry_nodes = (
+        ferry_df[&#34;node_id&#34;]
+        .explode()
+        .drop_duplicates()
+        .reset_index(drop=True)
+        .to_frame()
+    )
+    ferry_nodes[&#34;easting&#34;] = ferry_nodes[&#34;node_id&#34;].apply(lambda row: row.x)
+    ferry_nodes[&#34;northing&#34;] = ferry_nodes[&#34;node_id&#34;].apply(lambda row: row.y)
+
+    ferry_edges = ferry_df[[&#34;node_id&#34;, &#34;geometry&#34;]].copy()
+    ferry_edges[&#34;startNode&#34;] = ferry_edges[&#34;node_id&#34;].apply(lambda row: row[0])
+    ferry_edges[&#34;endNode&#34;] = ferry_edges[&#34;node_id&#34;].apply(lambda row: row[1])
+    ferry_edges[&#34;length&#34;] = ferry_edges.geometry.length
+    ferry_edges = ferry_edges.assign(
+        time_weighted=(ferry_edges[&#34;length&#34;].astype(float) / 1000) / 25 * 1.609344 * 60
+    )
+
+    ferry_nodes[&#34;node_id&#34;] = ferry_nodes[&#34;node_id&#34;].astype(str)
+    ferry_nodes = cudf.from_pandas(ferry_nodes[[&#34;node_id&#34;, &#34;easting&#34;, &#34;northing&#34;]])
+    ferry_edges[&#34;startNode&#34;] = ferry_edges[&#34;startNode&#34;].astype(str)
+    ferry_edges[&#34;endNode&#34;] = ferry_edges[&#34;endNode&#34;].astype(str)
+    ferry_edges = cudf.from_pandas(
+        ferry_edges.rename(columns={&#34;FERRY_FROM&#34;: &#34;startNode&#34;, &#34;FERRY_TO&#34;: &#34;endNode&#34;})[
+            [&#34;startNode&#34;, &#34;endNode&#34;, &#34;length&#34;, &#34;time_weighted&#34;]
+        ]
+    )
+    return ferry_nodes, ferry_edges</code></pre>
 </details>
 </dd>
 </dl>
@@ -220,7 +373,9 @@ taken from OS documentation. This also filters to remove extra cols.</p>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="ahah.os_highways.change_ferry_nodes" href="#ahah.os_highways.change_ferry_nodes">change_ferry_nodes</a></code></li>
 <li><code><a title="ahah.os_highways.process_edges" href="#ahah.os_highways.process_edges">process_edges</a></code></li>
+<li><code><a title="ahah.os_highways.process_ferry" href="#ahah.os_highways.process_ferry">process_ferry</a></code></li>
 </ul>
 </li>
 </ul>

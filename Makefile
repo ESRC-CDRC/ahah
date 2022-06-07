@@ -13,4 +13,5 @@ routing:
 	- python -m ahah.routing
 
 docs:
-	pdoc --html --force --output-dir docs ahah
+	pdoc --html --force --output-dir docs ahah \
+		&& mv -f docs/ahah/* docs

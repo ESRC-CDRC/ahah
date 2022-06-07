@@ -26,14 +26,18 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">import cudf
-import geopandas as gpd
-import itertools
-import pandas as pd
-from ahah.common.logger import logger
+<pre><code class="python">import os
 from pathlib import Path
-from shapely.geometry import mapping
-from typing import List, Union
+from typing import Union
+
+import cudf
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+from shapely.geometry import Polygon
+from tqdm import tqdm
+
+from ahah.common.logger import logger
 
 DataFrame = Union[pd.DataFrame, cudf.DataFrame]
 
@@ -41,11 +45,12 @@ DataFrame = Union[pd.DataFrame, cudf.DataFrame]
 class Config:
     &#34;&#34;&#34;Misc constants required throughout&#34;&#34;&#34;
 
-    DATA_PATH = Path(&#34;data/&#34;)
+    DATA_PATH = Path(os.environ[&#34;PROJECT_ROOT&#34;]) / &#34;data&#34;
     RAW_DATA = DATA_PATH / &#34;raw&#34;
     PROCESSED_DATA = DATA_PATH / &#34;processed&#34;
     OUT_DATA = DATA_PATH / &#34;out&#34;
     OS_GRAPH = PROCESSED_DATA / &#34;osm&#34;
+    HW_DATA = RAW_DATA / &#34;os_highways&#34; / &#34;oproad_gb.gpkg&#34;
 
     POI_LIST = [
         &#34;gpp&#34;,
@@ -63,38 +68,57 @@ class Config:
     # https://digital.nhs.uk/services/organisation-data-service/data-downloads
     NHS_URL = &#34;https://files.digital.nhs.uk/assets/ods/current/&#34;
     NHS_FILES = {
-        # 28 May 2021
+        # 25 Feburary 2022 - Checked 22 March 2022
         &#34;gpp&#34;: &#34;epraccur.zip&#34;,
-        # 28 May 2021
+        # &#34;&#34;
         &#34;dentists&#34;: &#34;egdpprac.zip&#34;,
-        # 28 May 2021
+        # &#34;&#34;
         &#34;pharmacies&#34;: &#34;edispensary.zip&#34;,
-        # 28 May 2021
+        # &#34;&#34;
         &#34;hospitals&#34;: &#34;ets.zip&#34;,
     }
     NHS_SCOT_URL = &#34;https://www.opendata.nhs.scot/dataset/&#34;
-    NHS_SCOT = {
-        # GP Practices and List sizes April 2021
+    NHS_SCOT_FILES = {
+        # GP Practices and List sizes Jan 2022
         &#34;gpp&#34;: &#34;f23655c3-6e23-4103-a511-a80d998adb90/resource&#34;
         &#34;/a794d603-95ab-4309-8c92-b48970478c14/download&#34;
-        &#34;/practice_contactdetails_apr2021-open-data.csv&#34;,
-        # Dental Practices December 2020
+        &#34;/practice_contactdetails_jan2022.csv&#34;,
+        # Dental Practices June 2021
         &#34;dentists&#34;: &#34;2f218ba7-6695-4b22-867d-41383ae36de7/resource&#34;
-        &#34;/20040f9f-e598-4237-8a12-8bc35c0b2959/download&#34;
-        &#34;/nhs-dental-practices-and-nhs-dental-registrations-as-at-31st-december-2020.csv&#34;,
-        # Current NHS Hospitals in Scotland 6th May, 2021
+        &#34;/12bf4b02-15e6-41d0-9ae0-18663b463833/download&#34;
+        &#34;/nhs-dental-practices-and-nhs-dental-registrations-as-at-30th-june-2021.csv&#34;,
+        # Current NHS Hospitals in Scotland 16th December 2021
         &#34;hospitals&#34;: &#34;cbd1802e-0e04-4282-88eb-d7bdcfb120f0/resource&#34;
         &#34;/c698f450-eeed-41a0-88f7-c1e40a568acc/download&#34;
-        &#34;/current-hospital_flagged20210506.csv&#34;,
-        # Accident &amp; Emergency Sites 9th April, 2020
-        &#34;ae&#34;: &#34;a877470a-06a9-492f-b9e8-992f758894d0/resource&#34;
-        &#34;/1a4e3f48-3d9b-4769-80e9-3ef6d27852fe/download&#34;
-        &#34;/hospital_site_list.csv&#34;,
-        # Dispenser Details October 2020
+        &#34;/current-hospital_flagged20211216.csv&#34;,
+        # Dispenser Details October 2021
         &#34;pharmacies&#34;: &#34;a30fde16-1226-49b3-b13d-eb90e39c2058/resource&#34;
-        &#34;/d08bc753-c6dc-4dbd-8b37-ef439d3a7428/download&#34;
-        &#34;/dispenser_contactdetails_oct2020_notabs.csv&#34;,
+        &#34;/9f9db0c9-8b5a-4813-b586-7e0084bbf9b0/download&#34;
+        &#34;/dispenser_contactdetails_oct2021.csv&#34;,
     }
+    NHS_WALES_URL = (
+        &#34;https://nwssp.nhs.wales/ourservices/&#34;
+        &#34;primary-care-services/primary-care-services-documents/&#34;
+    )
+    NHS_WALES_FILES = {
+        &#34;pharmacy&#34;: (
+            &#34;pharmacy-practice-dispensing-data-docs&#34;
+            &#34;/dispensing-data-report-november-2021&#34;
+        )
+    }
+
+
+def combine_lsoa(eng, scot, wales):
+    eng = gpd.read_file(eng)[[&#34;code&#34;, &#34;name&#34;, &#34;geometry&#34;]].rename(
+        columns={&#34;code&#34;: &#34;lsoa11&#34;}
+    )
+    scot = gpd.read_file(scot)[[&#34;DataZone&#34;, &#34;Name&#34;, &#34;geometry&#34;]].rename(
+        columns={&#34;DataZone&#34;: &#34;lsoa11&#34;, &#34;Name&#34;: &#34;name&#34;}
+    )
+    wales = gpd.read_file(wales)[[&#34;LSOA11Code&#34;, &#34;lsoa11name&#34;, &#34;geometry&#34;]].rename(
+        columns={&#34;LSOA11Code&#34;: &#34;lsoa11&#34;, &#34;lsoa11name&#34;: &#34;name&#34;}
+    )
+    return eng.append(scot).append(wales)
 
 
 def fix_postcodes(df: DataFrame) -&gt; DataFrame:
@@ -104,7 +128,7 @@ def fix_postcodes(df: DataFrame) -&gt; DataFrame:
     Parameters
     ----------
     series : DataFrame
-        Df withSeries of postcodes as strings
+        Df with Series of postcodes as strings
 
     Returns
     -------
@@ -118,10 +142,12 @@ def fix_postcodes(df: DataFrame) -&gt; DataFrame:
 
 def find_partial_pc(df, postcodes):
     &#34;&#34;&#34;
-    Find postcodes that have partially correct first characters
+    Find postcodes that have partially correct first characters.
+
     Splits postcodes into two and uses first half to match to likely nearest
     correct postcode location if the postcode cannot be found in whole postcode
     dataset.
+
     Parameters
     ----------
     poi : Union[pd.DataFrame, cudf.DataFrame]
@@ -161,22 +187,15 @@ def find_partial_pc(df, postcodes):
     return df.dropna().append(missing)
 
 
-def clean_postcodes(
-    path: Path, current: bool, scotland=True, wales=True
-) -&gt; cudf.DataFrame:
-    logger.debug(&#34;Cleaning postcodes...&#34;)
-
-    countries = [&#34;E92000001&#34;]
-    if scotland:
-        countries.append(&#34;S92000003&#34;)
-    if wales:
-        countries.append(&#34;W92000004&#34;)
+def clean_postcodes(path: Path, current: bool) -&gt; cudf.DataFrame:
+    logger.info(&#34;Cleaning postcodes...&#34;)
 
     dtypes = {
         &#34;pcd&#34;: &#34;str&#34;,
+        &#34;lsoa11&#34;: &#34;str&#34;,
         &#34;oseast1m&#34;: &#34;int&#34;,
         &#34;osnrth1m&#34;: &#34;int&#34;,
-        &#34;doterm&#34;: &#34;str&#34;,
+        &#34;doterm&#34;: &#34;int&#34;,
         &#34;ctry&#34;: &#34;str&#34;,
     }
     column_names = {
@@ -188,29 +207,38 @@ def clean_postcodes(
     postcodes = (
         cudf.read_csv(
             path,
-            usecols=[&#34;pcd&#34;, &#34;oseast1m&#34;, &#34;osnrth1m&#34;, &#34;doterm&#34;, &#34;ctry&#34;],
+            usecols=[*dtypes],
             dtype=dtypes,
         )
         .rename(columns=column_names)
         .set_index(&#34;ctry&#34;)
-        .loc[countries, :]
-        .reset_index()
-        .drop(&#34;ctry&#34;, axis=1)
+        .loc[[&#34;E92000001&#34;, &#34;S92000003&#34;, &#34;W92000004&#34;]]
         .pipe(fix_postcodes)
         .dropna(subset=[&#34;northing&#34;, &#34;easting&#34;])
         .set_index(&#34;postcode&#34;)
+        .drop_duplicates()
     )
 
-    if current:
-        return postcodes[postcodes[&#34;doterm&#34;].isnull()].drop(&#34;doterm&#34;, axis=1)
-    else:
+    if not current:
         return postcodes.drop(&#34;doterm&#34;, axis=1)
+
+    # 2 scottish LSOA have no current postcodes - so use nearby ones
+    pc_current = postcodes[postcodes[&#34;doterm&#34;].isnull()]
+    missing = postcodes.copy()
+    missing.loc[&#34;G21 4QJ&#34;, &#34;lsoa11&#34;] = &#34;S01010206&#34;
+    missing.loc[[&#34;G21 1NL&#34;, &#34;G21 1RR&#34;], &#34;lsoa11&#34;] = &#34;S01010226&#34;
+
+    return (
+        pc_current.append(postcodes[postcodes[&#34;lsoa11&#34;] == &#34;S01011827&#34;])
+        .append(missing.loc[[&#34;G21 4QJ&#34;, &#34;G21 1NL&#34;, &#34;G21 1RR&#34;]])
+        .drop(&#34;doterm&#34;, axis=1)
+    )
 
 
 def clean_dentists(
     england: Path, scotland: Path, postcodes: cudf.DataFrame
 ) -&gt; cudf.DataFrame:
-    logger.debug(&#34;Cleaning dentists...&#34;)
+    logger.info(&#34;Cleaning dentists...&#34;)
 
     edent = (
         cudf.read_csv(england, usecols=[0, 9], header=None)
@@ -236,13 +264,13 @@ def clean_dentists(
         .pipe(find_partial_pc, postcodes)
     )
 
-    return edent.append(sdent)
+    return edent.append(sdent).reset_index()
 
 
 def clean_gpp(
     england: Path, scotland: Path, postcodes: cudf.DataFrame
 ) -&gt; cudf.DataFrame:
-    logger.debug(&#34;Cleaning gpp...&#34;)
+    logger.info(&#34;Cleaning gpp...&#34;)
 
     egpp = (
         cudf.read_csv(england, usecols=[0, 9, 11], header=None)
@@ -265,13 +293,13 @@ def clean_gpp(
         .pipe(find_partial_pc, postcodes)
     )
 
-    return egpp.append(sgpp)
+    return egpp.append(sgpp).reset_index()
 
 
 def clean_pharmacies(
-    england: Path, scotland: Path, postcodes: cudf.DataFrame
+    england: Path, scotland: Path, wales: Path, postcodes: cudf.DataFrame
 ) -&gt; cudf.DataFrame:
-    logger.debug(&#34;Cleaning pharmacies...&#34;)
+    logger.info(&#34;Cleaning pharmacies...&#34;)
 
     epharm = (
         cudf.read_csv(england, header=None, usecols=[0, 9, 11])
@@ -285,15 +313,25 @@ def clean_pharmacies(
     )
 
     spharm = (
-        cudf.read_csv(scotland, usecols=[0, 6])
-        .rename(columns={&#34;﻿DispenserCode&#34;: &#34;pharmacy&#34;, &#34;Postcode&#34;: &#34;postcode&#34;})
+        cudf.read_csv(scotland, usecols=[0, 6], sep=&#34;\t&#34;)
+        .rename(columns={&#34;DispenserCode&#34;: &#34;pharmacy&#34;, &#34;Postcode&#34;: &#34;postcode&#34;})
         .astype(str)
         .pipe(fix_postcodes)
         .set_index(&#34;postcode&#34;)
         .join(postcodes)
         .pipe(find_partial_pc, postcodes)
     )
-    return epharm.append(spharm)
+
+    wpharm = (
+        cudf.from_pandas(pd.read_excel(wales, usecols=[&#34;Account Number&#34;, &#34;Post Code&#34;]))
+        .rename(columns={&#34;Account Number&#34;: &#34;pharmacy&#34;, &#34;Post Code&#34;: &#34;postcode&#34;})
+        .astype(str)
+        .pipe(fix_postcodes)
+        .set_index(&#34;postcode&#34;)
+        .join(postcodes)
+        .pipe(find_partial_pc, postcodes)
+    )
+    return epharm.append(spharm).append(wpharm).reset_index()
 
 
 def clean_hospitals(
@@ -318,137 +356,89 @@ def clean_hospitals(
         .join(postcodes)
         .pipe(find_partial_pc, postcodes)
     )
-    return ehos.append(shos)
+    return ehos.append(shos).reset_index()
 
 
 def clean_air(path: Path, col: &#34;str&#34;):
-    logger.debug(f&#34;Cleaning air: {path}:{col}&#34;)
+    logger.info(f&#34;Cleaning air: {path}:{col}&#34;)
     air: pd.DataFrame = pd.read_csv(path, skiprows=5, header=0)
     air = air[air[col] != &#34;MISSING&#34;]
     air[col] = air[col].astype(float)
     return air
 
 
-def clean_greenspace_access(path: Path) -&gt; cudf.DataFrame:
-    logger.debug(&#34;Cleaning greenspace access...&#34;)
-    greenspace = gpd.read_file(path)
-    greenspace[&#34;easting&#34;], greenspace[&#34;northing&#34;] = (
-        greenspace.geometry.x,
-        greenspace.geometry.y,
-    )
-    return cudf.DataFrame(greenspace.drop(&#34;geometry&#34;, axis=1)).loc[
-        :, [&#34;id&#34;, &#34;easting&#34;, &#34;northing&#34;]
+def single_parametric_interpolate(obj_x_loc, obj_y_loc, num_pts: int):
+    # https://stackoverflow.com/questions/42023522/random-sampling-of-points-along-a-polygon-boundary
+    if obj_x_loc is None or obj_y_loc is None:
+        return None
+
+    num_coords = len(obj_x_loc)
+
+    vi = [
+        [
+            obj_x_loc[(i + 1) % num_coords] - obj_x_loc[i],
+            obj_y_loc[(i + 1) % num_coords] - obj_y_loc[i],
+        ]
+        for i in range(num_coords)
     ]
-
-
-def clean_bluespace(dir: Path) -&gt; cudf.DataFrame:
-    logger.debug(&#34;Cleaning bluespace...&#34;)
-    bluespace = gpd.GeoDataFrame(
-        pd.concat([gpd.read_file(shp) for shp in dir.glob(&#34;*.shp&#34;)], ignore_index=True)
-    )
-
-    def keep_tuples(row):
-        try:
-            row = row[:2]
-        except TypeError:
-            row = &#34;DROP&#34;
-        return row
-
-    bluespace = (
-        bluespace.simplify(25)
-        .apply(lambda x: list(itertools.chain.from_iterable(mapping(x)[&#34;coordinates&#34;])))
-        .explode()
-        .apply(keep_tuples)
-    )
-    bluespace = (
-        pd.DataFrame(
-            bluespace[bluespace != &#34;DROP&#34;].tolist(), columns=[&#34;easting&#34;, &#34;northing&#34;]
+    si = [np.linalg.norm(v) for v in vi]
+    di = np.linspace(0, sum(si), num_pts, endpoint=False)
+    new_points = []
+    for d in di:
+        for i, s in enumerate(si):
+            if d &gt; s:
+                d -= s
+            else:
+                break
+        lnth = d / s
+        new_points.append(
+            [int(obj_x_loc[i] + lnth * vi[i][0]), int(obj_y_loc[i] + lnth * vi[i][1])]
         )
-        .astype(&#34;int&#34;)
-        .drop_duplicates()
+    return new_points
+
+
+def catch_exterior(row):
+    return row.exterior.coords.xy if isinstance(row, Polygon) else None
+
+
+def clean_bluespace(data_dir: Path) -&gt; cudf.DataFrame:
+    logger.info(&#34;Cleaning bluespace...&#34;)
+    bluespace = gpd.GeoDataFrame(
+        pd.concat(
+            [gpd.read_file(shp) for shp in tqdm(list(data_dir.glob(&#34;*.shp&#34;)))],
+            ignore_index=True,
+        )
     )
-    return cudf.from_pandas(bluespace)
 
+    high_water = bluespace[bluespace[&#34;CLASSIFICA&#34;] == &#34;High Water Mark&#34;]
+    bluespace = bluespace[(bluespace.geometry.area &gt; 10_000)]
+    bluespace.geometry = bluespace.geometry.simplify(25)
+    high_water.geometry = high_water.geometry.simplify(25)
 
-def clean_retail(path: Path):
-    retail = pd.read_csv(path)
-    retail = retail[retail[&#34;ClosedDate&#34;].isna()]
-    retail = retail[[&#34;PremiseId&#34;, &#34;Category&#34;, &#34;Subcategory&#34;, &#34;PostCode&#34;]]
-    retail = retail.rename(
-        columns={
-            &#34;PremiseId&#34;: &#34;id&#34;,
-            &#34;PostCode&#34;: &#34;postcode&#34;,
-            &#34;Category&#34;: &#34;category&#34;,
-            &#34;Subcategory&#34;: &#34;subcategory&#34;,
-        }
+    tqdm.pandas()
+    high_water = high_water.progress_apply(lambda x: x.geometry.coords.xy, axis=1)
+    bluespace = bluespace.progress_apply(
+        lambda x: catch_exterior(x.geometry), axis=1
+    ).dropna()
+    bluespace = bluespace.append(high_water)
+    bluespace = pd.DataFrame(bluespace.tolist())
+
+    tqdm.pandas()
+    bluespace = cudf.DataFrame(
+        bluespace.progress_apply(
+            lambda row: single_parametric_interpolate(row[0], row[1], num_pts=10),
+            axis=1,
+        )
+        .explode()
+        .dropna()
+        .tolist(),
+        columns=[&#34;easting&#34;, &#34;northing&#34;],
     )
-    return retail
 
+    bluespace[&#34;easting&#34;] = bluespace[&#34;easting&#34;].round(-2)
+    bluespace[&#34;northing&#34;] = bluespace[&#34;northing&#34;].round(-2)
 
-def subset_retail(
-    retail: cudf.DataFrame,
-    types: List[str],
-    postcodes: cudf.DataFrame,
-    column: str = &#34;subcategory&#34;,
-) -&gt; cudf.DataFrame:
-    # see https://www.nature.com/articles/s41597-019-0114-6/tables/2 for types
-    categories = retail[column].unique().to_pandas().tolist()
-
-    assert all(item in categories for item in types), f&#34;{types} missing.&#34;
-
-    # BUG: This doesn&#39;t currently work using cudf, no idea why
-    retail = retail.to_pandas()
-    subset = retail[retail[column].isin(types)]
-
-    subset[&#34;postcode&#34;] = fix_postcodes(subset[&#34;postcode&#34;])
-    subset_pc = subset.merge(postcodes.to_pandas(), on=&#34;postcode&#34;)
-    assert len(subset) == len(subset_pc), &#34;Missing postcodes.&#34;
-
-    return cudf.from_pandas(subset_pc[[&#34;postcode&#34;]])
-
-
-def clean_fast_food(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
-    # All present
-    types = [
-        &#34;Chinese Fast Food Takeaway&#34;,
-        &#34;Fast Food Delivery&#34;,
-        &#34;Fish &amp; Chip Shops&#34;,
-        &#34;Indian Takeaway&#34;,
-        &#34;Pizza Takeaway&#34;,
-        &#34;Sandwich Delivery Service&#34;,
-        &#34;Take Away Food Shops&#34;,
-    ]
-    return subset_retail(retail, types, postcodes)
-
-
-def clean_gambling(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
-    # All present
-    types = [&#34;Casino Clubs&#34;, &#34;Bookmakers&#34;]
-    return subset_retail(retail, types, postcodes)
-
-
-def clean_offlicences(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
-    # &#39;Off Licences&#39; missing from Category- &#39;Wines, Spirits &amp; Beers&#39; replaced?
-    types = [&#34;Off Licences&#34;]
-    return subset_retail(retail, types, postcodes)
-
-
-def clean_pubs(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
-    # All present
-    types = [&#34;Night Clubs&#34;, &#34;Bars&#34;, &#34;Public Houses &amp; Inns&#34;]
-    return subset_retail(retail, types, postcodes)
-
-
-def clean_tobacconists(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
-    # Missing Tobacconists from Subcategory
-    types = [&#34;Tobacconists&#34;]
-    return subset_retail(retail, types, postcodes)
-
-
-def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
-    # All present
-    types = [&#34;Leisure Centres &amp; Swimming Baths&#34;, &#34;Health Clubs&#34;]
-    return subset_retail(retail, types, postcodes)</code></pre>
+    return bluespace.drop_duplicates()</code></pre>
 </details>
 </section>
 <section>
@@ -458,6 +448,19 @@ def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="ahah.common.utils.catch_exterior"><code class="name flex">
+<span>def <span class="ident">catch_exterior</span></span>(<span>row)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def catch_exterior(row):
+    return row.exterior.coords.xy if isinstance(row, Polygon) else None</code></pre>
+</details>
+</dd>
 <dt id="ahah.common.utils.clean_air"><code class="name flex">
 <span>def <span class="ident">clean_air</span></span>(<span>path: pathlib.Path, col: str)</span>
 </code></dt>
@@ -468,7 +471,7 @@ def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def clean_air(path: Path, col: &#34;str&#34;):
-    logger.debug(f&#34;Cleaning air: {path}:{col}&#34;)
+    logger.info(f&#34;Cleaning air: {path}:{col}&#34;)
     air: pd.DataFrame = pd.read_csv(path, skiprows=5, header=0)
     air = air[air[col] != &#34;MISSING&#34;]
     air[col] = air[col].astype(float)
@@ -476,7 +479,7 @@ def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
 </details>
 </dd>
 <dt id="ahah.common.utils.clean_bluespace"><code class="name flex">
-<span>def <span class="ident">clean_bluespace</span></span>(<span>dir: pathlib.Path) ‑> cudf.core.dataframe.DataFrame</span>
+<span>def <span class="ident">clean_bluespace</span></span>(<span>data_dir: pathlib.Path) ‑> cudf.core.dataframe.DataFrame</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -484,33 +487,44 @@ def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def clean_bluespace(dir: Path) -&gt; cudf.DataFrame:
-    logger.debug(&#34;Cleaning bluespace...&#34;)
+<pre><code class="python">def clean_bluespace(data_dir: Path) -&gt; cudf.DataFrame:
+    logger.info(&#34;Cleaning bluespace...&#34;)
     bluespace = gpd.GeoDataFrame(
-        pd.concat([gpd.read_file(shp) for shp in dir.glob(&#34;*.shp&#34;)], ignore_index=True)
-    )
-
-    def keep_tuples(row):
-        try:
-            row = row[:2]
-        except TypeError:
-            row = &#34;DROP&#34;
-        return row
-
-    bluespace = (
-        bluespace.simplify(25)
-        .apply(lambda x: list(itertools.chain.from_iterable(mapping(x)[&#34;coordinates&#34;])))
-        .explode()
-        .apply(keep_tuples)
-    )
-    bluespace = (
-        pd.DataFrame(
-            bluespace[bluespace != &#34;DROP&#34;].tolist(), columns=[&#34;easting&#34;, &#34;northing&#34;]
+        pd.concat(
+            [gpd.read_file(shp) for shp in tqdm(list(data_dir.glob(&#34;*.shp&#34;)))],
+            ignore_index=True,
         )
-        .astype(&#34;int&#34;)
-        .drop_duplicates()
     )
-    return cudf.from_pandas(bluespace)</code></pre>
+
+    high_water = bluespace[bluespace[&#34;CLASSIFICA&#34;] == &#34;High Water Mark&#34;]
+    bluespace = bluespace[(bluespace.geometry.area &gt; 10_000)]
+    bluespace.geometry = bluespace.geometry.simplify(25)
+    high_water.geometry = high_water.geometry.simplify(25)
+
+    tqdm.pandas()
+    high_water = high_water.progress_apply(lambda x: x.geometry.coords.xy, axis=1)
+    bluespace = bluespace.progress_apply(
+        lambda x: catch_exterior(x.geometry), axis=1
+    ).dropna()
+    bluespace = bluespace.append(high_water)
+    bluespace = pd.DataFrame(bluespace.tolist())
+
+    tqdm.pandas()
+    bluespace = cudf.DataFrame(
+        bluespace.progress_apply(
+            lambda row: single_parametric_interpolate(row[0], row[1], num_pts=10),
+            axis=1,
+        )
+        .explode()
+        .dropna()
+        .tolist(),
+        columns=[&#34;easting&#34;, &#34;northing&#34;],
+    )
+
+    bluespace[&#34;easting&#34;] = bluespace[&#34;easting&#34;].round(-2)
+    bluespace[&#34;northing&#34;] = bluespace[&#34;northing&#34;].round(-2)
+
+    return bluespace.drop_duplicates()</code></pre>
 </details>
 </dd>
 <dt id="ahah.common.utils.clean_dentists"><code class="name flex">
@@ -525,7 +539,7 @@ def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
 <pre><code class="python">def clean_dentists(
     england: Path, scotland: Path, postcodes: cudf.DataFrame
 ) -&gt; cudf.DataFrame:
-    logger.debug(&#34;Cleaning dentists...&#34;)
+    logger.info(&#34;Cleaning dentists...&#34;)
 
     edent = (
         cudf.read_csv(england, usecols=[0, 9], header=None)
@@ -551,45 +565,7 @@ def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
         .pipe(find_partial_pc, postcodes)
     )
 
-    return edent.append(sdent)</code></pre>
-</details>
-</dd>
-<dt id="ahah.common.utils.clean_fast_food"><code class="name flex">
-<span>def <span class="ident">clean_fast_food</span></span>(<span>retail: cudf.core.dataframe.DataFrame, postcodes: cudf.core.dataframe.DataFrame)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def clean_fast_food(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
-    # All present
-    types = [
-        &#34;Chinese Fast Food Takeaway&#34;,
-        &#34;Fast Food Delivery&#34;,
-        &#34;Fish &amp; Chip Shops&#34;,
-        &#34;Indian Takeaway&#34;,
-        &#34;Pizza Takeaway&#34;,
-        &#34;Sandwich Delivery Service&#34;,
-        &#34;Take Away Food Shops&#34;,
-    ]
-    return subset_retail(retail, types, postcodes)</code></pre>
-</details>
-</dd>
-<dt id="ahah.common.utils.clean_gambling"><code class="name flex">
-<span>def <span class="ident">clean_gambling</span></span>(<span>retail: cudf.core.dataframe.DataFrame, postcodes: cudf.core.dataframe.DataFrame)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def clean_gambling(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
-    # All present
-    types = [&#34;Casino Clubs&#34;, &#34;Bookmakers&#34;]
-    return subset_retail(retail, types, postcodes)</code></pre>
+    return edent.append(sdent).reset_index()</code></pre>
 </details>
 </dd>
 <dt id="ahah.common.utils.clean_gpp"><code class="name flex">
@@ -604,7 +580,7 @@ def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
 <pre><code class="python">def clean_gpp(
     england: Path, scotland: Path, postcodes: cudf.DataFrame
 ) -&gt; cudf.DataFrame:
-    logger.debug(&#34;Cleaning gpp...&#34;)
+    logger.info(&#34;Cleaning gpp...&#34;)
 
     egpp = (
         cudf.read_csv(england, usecols=[0, 9, 11], header=None)
@@ -627,28 +603,7 @@ def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
         .pipe(find_partial_pc, postcodes)
     )
 
-    return egpp.append(sgpp)</code></pre>
-</details>
-</dd>
-<dt id="ahah.common.utils.clean_greenspace_access"><code class="name flex">
-<span>def <span class="ident">clean_greenspace_access</span></span>(<span>path: pathlib.Path) ‑> cudf.core.dataframe.DataFrame</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def clean_greenspace_access(path: Path) -&gt; cudf.DataFrame:
-    logger.debug(&#34;Cleaning greenspace access...&#34;)
-    greenspace = gpd.read_file(path)
-    greenspace[&#34;easting&#34;], greenspace[&#34;northing&#34;] = (
-        greenspace.geometry.x,
-        greenspace.geometry.y,
-    )
-    return cudf.DataFrame(greenspace.drop(&#34;geometry&#34;, axis=1)).loc[
-        :, [&#34;id&#34;, &#34;easting&#34;, &#34;northing&#34;]
-    ]</code></pre>
+    return egpp.append(sgpp).reset_index()</code></pre>
 </details>
 </dd>
 <dt id="ahah.common.utils.clean_hospitals"><code class="name flex">
@@ -682,41 +637,11 @@ def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
         .join(postcodes)
         .pipe(find_partial_pc, postcodes)
     )
-    return ehos.append(shos)</code></pre>
-</details>
-</dd>
-<dt id="ahah.common.utils.clean_leisure"><code class="name flex">
-<span>def <span class="ident">clean_leisure</span></span>(<span>retail: cudf.core.dataframe.DataFrame, postcodes: cudf.core.dataframe.DataFrame)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
-    # All present
-    types = [&#34;Leisure Centres &amp; Swimming Baths&#34;, &#34;Health Clubs&#34;]
-    return subset_retail(retail, types, postcodes)</code></pre>
-</details>
-</dd>
-<dt id="ahah.common.utils.clean_offlicences"><code class="name flex">
-<span>def <span class="ident">clean_offlicences</span></span>(<span>retail: cudf.core.dataframe.DataFrame, postcodes: cudf.core.dataframe.DataFrame)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def clean_offlicences(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
-    # &#39;Off Licences&#39; missing from Category- &#39;Wines, Spirits &amp; Beers&#39; replaced?
-    types = [&#34;Off Licences&#34;]
-    return subset_retail(retail, types, postcodes)</code></pre>
+    return ehos.append(shos).reset_index()</code></pre>
 </details>
 </dd>
 <dt id="ahah.common.utils.clean_pharmacies"><code class="name flex">
-<span>def <span class="ident">clean_pharmacies</span></span>(<span>england: pathlib.Path, scotland: pathlib.Path, postcodes: cudf.core.dataframe.DataFrame) ‑> cudf.core.dataframe.DataFrame</span>
+<span>def <span class="ident">clean_pharmacies</span></span>(<span>england: pathlib.Path, scotland: pathlib.Path, wales: pathlib.Path, postcodes: cudf.core.dataframe.DataFrame) ‑> cudf.core.dataframe.DataFrame</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -725,9 +650,9 @@ def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def clean_pharmacies(
-    england: Path, scotland: Path, postcodes: cudf.DataFrame
+    england: Path, scotland: Path, wales: Path, postcodes: cudf.DataFrame
 ) -&gt; cudf.DataFrame:
-    logger.debug(&#34;Cleaning pharmacies...&#34;)
+    logger.info(&#34;Cleaning pharmacies...&#34;)
 
     epharm = (
         cudf.read_csv(england, header=None, usecols=[0, 9, 11])
@@ -741,19 +666,29 @@ def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
     )
 
     spharm = (
-        cudf.read_csv(scotland, usecols=[0, 6])
-        .rename(columns={&#34;﻿DispenserCode&#34;: &#34;pharmacy&#34;, &#34;Postcode&#34;: &#34;postcode&#34;})
+        cudf.read_csv(scotland, usecols=[0, 6], sep=&#34;\t&#34;)
+        .rename(columns={&#34;DispenserCode&#34;: &#34;pharmacy&#34;, &#34;Postcode&#34;: &#34;postcode&#34;})
         .astype(str)
         .pipe(fix_postcodes)
         .set_index(&#34;postcode&#34;)
         .join(postcodes)
         .pipe(find_partial_pc, postcodes)
     )
-    return epharm.append(spharm)</code></pre>
+
+    wpharm = (
+        cudf.from_pandas(pd.read_excel(wales, usecols=[&#34;Account Number&#34;, &#34;Post Code&#34;]))
+        .rename(columns={&#34;Account Number&#34;: &#34;pharmacy&#34;, &#34;Post Code&#34;: &#34;postcode&#34;})
+        .astype(str)
+        .pipe(fix_postcodes)
+        .set_index(&#34;postcode&#34;)
+        .join(postcodes)
+        .pipe(find_partial_pc, postcodes)
+    )
+    return epharm.append(spharm).append(wpharm).reset_index()</code></pre>
 </details>
 </dd>
 <dt id="ahah.common.utils.clean_postcodes"><code class="name flex">
-<span>def <span class="ident">clean_postcodes</span></span>(<span>path: pathlib.Path, current: bool, scotland=True, wales=True) ‑> cudf.core.dataframe.DataFrame</span>
+<span>def <span class="ident">clean_postcodes</span></span>(<span>path: pathlib.Path, current: bool) ‑> cudf.core.dataframe.DataFrame</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -761,22 +696,15 @@ def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def clean_postcodes(
-    path: Path, current: bool, scotland=True, wales=True
-) -&gt; cudf.DataFrame:
-    logger.debug(&#34;Cleaning postcodes...&#34;)
-
-    countries = [&#34;E92000001&#34;]
-    if scotland:
-        countries.append(&#34;S92000003&#34;)
-    if wales:
-        countries.append(&#34;W92000004&#34;)
+<pre><code class="python">def clean_postcodes(path: Path, current: bool) -&gt; cudf.DataFrame:
+    logger.info(&#34;Cleaning postcodes...&#34;)
 
     dtypes = {
         &#34;pcd&#34;: &#34;str&#34;,
+        &#34;lsoa11&#34;: &#34;str&#34;,
         &#34;oseast1m&#34;: &#34;int&#34;,
         &#34;osnrth1m&#34;: &#34;int&#34;,
-        &#34;doterm&#34;: &#34;str&#34;,
+        &#34;doterm&#34;: &#34;int&#34;,
         &#34;ctry&#34;: &#34;str&#34;,
     }
     column_names = {
@@ -788,27 +716,36 @@ def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
     postcodes = (
         cudf.read_csv(
             path,
-            usecols=[&#34;pcd&#34;, &#34;oseast1m&#34;, &#34;osnrth1m&#34;, &#34;doterm&#34;, &#34;ctry&#34;],
+            usecols=[*dtypes],
             dtype=dtypes,
         )
         .rename(columns=column_names)
         .set_index(&#34;ctry&#34;)
-        .loc[countries, :]
-        .reset_index()
-        .drop(&#34;ctry&#34;, axis=1)
+        .loc[[&#34;E92000001&#34;, &#34;S92000003&#34;, &#34;W92000004&#34;]]
         .pipe(fix_postcodes)
         .dropna(subset=[&#34;northing&#34;, &#34;easting&#34;])
         .set_index(&#34;postcode&#34;)
+        .drop_duplicates()
     )
 
-    if current:
-        return postcodes[postcodes[&#34;doterm&#34;].isnull()].drop(&#34;doterm&#34;, axis=1)
-    else:
-        return postcodes.drop(&#34;doterm&#34;, axis=1)</code></pre>
+    if not current:
+        return postcodes.drop(&#34;doterm&#34;, axis=1)
+
+    # 2 scottish LSOA have no current postcodes - so use nearby ones
+    pc_current = postcodes[postcodes[&#34;doterm&#34;].isnull()]
+    missing = postcodes.copy()
+    missing.loc[&#34;G21 4QJ&#34;, &#34;lsoa11&#34;] = &#34;S01010206&#34;
+    missing.loc[[&#34;G21 1NL&#34;, &#34;G21 1RR&#34;], &#34;lsoa11&#34;] = &#34;S01010226&#34;
+
+    return (
+        pc_current.append(postcodes[postcodes[&#34;lsoa11&#34;] == &#34;S01011827&#34;])
+        .append(missing.loc[[&#34;G21 4QJ&#34;, &#34;G21 1NL&#34;, &#34;G21 1RR&#34;]])
+        .drop(&#34;doterm&#34;, axis=1)
+    )</code></pre>
 </details>
 </dd>
-<dt id="ahah.common.utils.clean_pubs"><code class="name flex">
-<span>def <span class="ident">clean_pubs</span></span>(<span>retail: cudf.core.dataframe.DataFrame, postcodes: cudf.core.dataframe.DataFrame)</span>
+<dt id="ahah.common.utils.combine_lsoa"><code class="name flex">
+<span>def <span class="ident">combine_lsoa</span></span>(<span>eng, scot, wales)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -816,61 +753,28 @@ def clean_leisure(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def clean_pubs(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
-    # All present
-    types = [&#34;Night Clubs&#34;, &#34;Bars&#34;, &#34;Public Houses &amp; Inns&#34;]
-    return subset_retail(retail, types, postcodes)</code></pre>
-</details>
-</dd>
-<dt id="ahah.common.utils.clean_retail"><code class="name flex">
-<span>def <span class="ident">clean_retail</span></span>(<span>path: pathlib.Path)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def clean_retail(path: Path):
-    retail = pd.read_csv(path)
-    retail = retail[retail[&#34;ClosedDate&#34;].isna()]
-    retail = retail[[&#34;PremiseId&#34;, &#34;Category&#34;, &#34;Subcategory&#34;, &#34;PostCode&#34;]]
-    retail = retail.rename(
-        columns={
-            &#34;PremiseId&#34;: &#34;id&#34;,
-            &#34;PostCode&#34;: &#34;postcode&#34;,
-            &#34;Category&#34;: &#34;category&#34;,
-            &#34;Subcategory&#34;: &#34;subcategory&#34;,
-        }
+<pre><code class="python">def combine_lsoa(eng, scot, wales):
+    eng = gpd.read_file(eng)[[&#34;code&#34;, &#34;name&#34;, &#34;geometry&#34;]].rename(
+        columns={&#34;code&#34;: &#34;lsoa11&#34;}
     )
-    return retail</code></pre>
-</details>
-</dd>
-<dt id="ahah.common.utils.clean_tobacconists"><code class="name flex">
-<span>def <span class="ident">clean_tobacconists</span></span>(<span>retail: cudf.core.dataframe.DataFrame, postcodes: cudf.core.dataframe.DataFrame)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def clean_tobacconists(retail: cudf.DataFrame, postcodes: cudf.DataFrame):
-    # Missing Tobacconists from Subcategory
-    types = [&#34;Tobacconists&#34;]
-    return subset_retail(retail, types, postcodes)</code></pre>
+    scot = gpd.read_file(scot)[[&#34;DataZone&#34;, &#34;Name&#34;, &#34;geometry&#34;]].rename(
+        columns={&#34;DataZone&#34;: &#34;lsoa11&#34;, &#34;Name&#34;: &#34;name&#34;}
+    )
+    wales = gpd.read_file(wales)[[&#34;LSOA11Code&#34;, &#34;lsoa11name&#34;, &#34;geometry&#34;]].rename(
+        columns={&#34;LSOA11Code&#34;: &#34;lsoa11&#34;, &#34;lsoa11name&#34;: &#34;name&#34;}
+    )
+    return eng.append(scot).append(wales)</code></pre>
 </details>
 </dd>
 <dt id="ahah.common.utils.find_partial_pc"><code class="name flex">
 <span>def <span class="ident">find_partial_pc</span></span>(<span>df, postcodes)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Find postcodes that have partially correct first characters
-Splits postcodes into two and uses first half to match to likely nearest
+<div class="desc"><p>Find postcodes that have partially correct first characters.</p>
+<p>Splits postcodes into two and uses first half to match to likely nearest
 correct postcode location if the postcode cannot be found in whole postcode
-dataset.
-Parameters</p>
-<hr>
+dataset.</p>
+<h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>poi</code></strong> :&ensp;<code>Union[pd.DataFrame, cudf.DataFrame]</code></dt>
 <dd>POI dataframe containing series of postcodes</dd>
@@ -890,10 +794,12 @@ Parameters</p>
 </summary>
 <pre><code class="python">def find_partial_pc(df, postcodes):
     &#34;&#34;&#34;
-    Find postcodes that have partially correct first characters
+    Find postcodes that have partially correct first characters.
+
     Splits postcodes into two and uses first half to match to likely nearest
     correct postcode location if the postcode cannot be found in whole postcode
     dataset.
+
     Parameters
     ----------
     poi : Union[pd.DataFrame, cudf.DataFrame]
@@ -941,7 +847,7 @@ Parameters</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>series</code></strong> :&ensp;<code>DataFrame</code></dt>
-<dd>Df withSeries of postcodes as strings</dd>
+<dd>Df with Series of postcodes as strings</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <h2 id="dataframe">Dataframe</h2>
@@ -957,7 +863,7 @@ Parameters</p>
     Parameters
     ----------
     series : DataFrame
-        Df withSeries of postcodes as strings
+        Df with Series of postcodes as strings
 
     Returns
     -------
@@ -969,8 +875,8 @@ Parameters</p>
     return df</code></pre>
 </details>
 </dd>
-<dt id="ahah.common.utils.subset_retail"><code class="name flex">
-<span>def <span class="ident">subset_retail</span></span>(<span>retail: cudf.core.dataframe.DataFrame, types: List[str], postcodes: cudf.core.dataframe.DataFrame, column: str = 'subcategory') ‑> cudf.core.dataframe.DataFrame</span>
+<dt id="ahah.common.utils.single_parametric_interpolate"><code class="name flex">
+<span>def <span class="ident">single_parametric_interpolate</span></span>(<span>obj_x_loc, obj_y_loc, num_pts: int)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -978,26 +884,34 @@ Parameters</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def subset_retail(
-    retail: cudf.DataFrame,
-    types: List[str],
-    postcodes: cudf.DataFrame,
-    column: str = &#34;subcategory&#34;,
-) -&gt; cudf.DataFrame:
-    # see https://www.nature.com/articles/s41597-019-0114-6/tables/2 for types
-    categories = retail[column].unique().to_pandas().tolist()
+<pre><code class="python">def single_parametric_interpolate(obj_x_loc, obj_y_loc, num_pts: int):
+    # https://stackoverflow.com/questions/42023522/random-sampling-of-points-along-a-polygon-boundary
+    if obj_x_loc is None or obj_y_loc is None:
+        return None
 
-    assert all(item in categories for item in types), f&#34;{types} missing.&#34;
+    num_coords = len(obj_x_loc)
 
-    # BUG: This doesn&#39;t currently work using cudf, no idea why
-    retail = retail.to_pandas()
-    subset = retail[retail[column].isin(types)]
-
-    subset[&#34;postcode&#34;] = fix_postcodes(subset[&#34;postcode&#34;])
-    subset_pc = subset.merge(postcodes.to_pandas(), on=&#34;postcode&#34;)
-    assert len(subset) == len(subset_pc), &#34;Missing postcodes.&#34;
-
-    return cudf.from_pandas(subset_pc[[&#34;postcode&#34;]])</code></pre>
+    vi = [
+        [
+            obj_x_loc[(i + 1) % num_coords] - obj_x_loc[i],
+            obj_y_loc[(i + 1) % num_coords] - obj_y_loc[i],
+        ]
+        for i in range(num_coords)
+    ]
+    si = [np.linalg.norm(v) for v in vi]
+    di = np.linspace(0, sum(si), num_pts, endpoint=False)
+    new_points = []
+    for d in di:
+        for i, s in enumerate(si):
+            if d &gt; s:
+                d -= s
+            else:
+                break
+        lnth = d / s
+        new_points.append(
+            [int(obj_x_loc[i] + lnth * vi[i][0]), int(obj_y_loc[i] + lnth * vi[i][1])]
+        )
+    return new_points</code></pre>
 </details>
 </dd>
 </dl>
@@ -1017,11 +931,12 @@ Parameters</p>
 <pre><code class="python">class Config:
     &#34;&#34;&#34;Misc constants required throughout&#34;&#34;&#34;
 
-    DATA_PATH = Path(&#34;data/&#34;)
+    DATA_PATH = Path(os.environ[&#34;PROJECT_ROOT&#34;]) / &#34;data&#34;
     RAW_DATA = DATA_PATH / &#34;raw&#34;
     PROCESSED_DATA = DATA_PATH / &#34;processed&#34;
     OUT_DATA = DATA_PATH / &#34;out&#34;
     OS_GRAPH = PROCESSED_DATA / &#34;osm&#34;
+    HW_DATA = RAW_DATA / &#34;os_highways&#34; / &#34;oproad_gb.gpkg&#34;
 
     POI_LIST = [
         &#34;gpp&#34;,
@@ -1039,37 +954,43 @@ Parameters</p>
     # https://digital.nhs.uk/services/organisation-data-service/data-downloads
     NHS_URL = &#34;https://files.digital.nhs.uk/assets/ods/current/&#34;
     NHS_FILES = {
-        # 28 May 2021
+        # 25 Feburary 2022 - Checked 22 March 2022
         &#34;gpp&#34;: &#34;epraccur.zip&#34;,
-        # 28 May 2021
+        # &#34;&#34;
         &#34;dentists&#34;: &#34;egdpprac.zip&#34;,
-        # 28 May 2021
+        # &#34;&#34;
         &#34;pharmacies&#34;: &#34;edispensary.zip&#34;,
-        # 28 May 2021
+        # &#34;&#34;
         &#34;hospitals&#34;: &#34;ets.zip&#34;,
     }
     NHS_SCOT_URL = &#34;https://www.opendata.nhs.scot/dataset/&#34;
-    NHS_SCOT = {
-        # GP Practices and List sizes April 2021
+    NHS_SCOT_FILES = {
+        # GP Practices and List sizes Jan 2022
         &#34;gpp&#34;: &#34;f23655c3-6e23-4103-a511-a80d998adb90/resource&#34;
         &#34;/a794d603-95ab-4309-8c92-b48970478c14/download&#34;
-        &#34;/practice_contactdetails_apr2021-open-data.csv&#34;,
-        # Dental Practices December 2020
+        &#34;/practice_contactdetails_jan2022.csv&#34;,
+        # Dental Practices June 2021
         &#34;dentists&#34;: &#34;2f218ba7-6695-4b22-867d-41383ae36de7/resource&#34;
-        &#34;/20040f9f-e598-4237-8a12-8bc35c0b2959/download&#34;
-        &#34;/nhs-dental-practices-and-nhs-dental-registrations-as-at-31st-december-2020.csv&#34;,
-        # Current NHS Hospitals in Scotland 6th May, 2021
+        &#34;/12bf4b02-15e6-41d0-9ae0-18663b463833/download&#34;
+        &#34;/nhs-dental-practices-and-nhs-dental-registrations-as-at-30th-june-2021.csv&#34;,
+        # Current NHS Hospitals in Scotland 16th December 2021
         &#34;hospitals&#34;: &#34;cbd1802e-0e04-4282-88eb-d7bdcfb120f0/resource&#34;
         &#34;/c698f450-eeed-41a0-88f7-c1e40a568acc/download&#34;
-        &#34;/current-hospital_flagged20210506.csv&#34;,
-        # Accident &amp; Emergency Sites 9th April, 2020
-        &#34;ae&#34;: &#34;a877470a-06a9-492f-b9e8-992f758894d0/resource&#34;
-        &#34;/1a4e3f48-3d9b-4769-80e9-3ef6d27852fe/download&#34;
-        &#34;/hospital_site_list.csv&#34;,
-        # Dispenser Details October 2020
+        &#34;/current-hospital_flagged20211216.csv&#34;,
+        # Dispenser Details October 2021
         &#34;pharmacies&#34;: &#34;a30fde16-1226-49b3-b13d-eb90e39c2058/resource&#34;
-        &#34;/d08bc753-c6dc-4dbd-8b37-ef439d3a7428/download&#34;
-        &#34;/dispenser_contactdetails_oct2020_notabs.csv&#34;,
+        &#34;/9f9db0c9-8b5a-4813-b586-7e0084bbf9b0/download&#34;
+        &#34;/dispenser_contactdetails_oct2021.csv&#34;,
+    }
+    NHS_WALES_URL = (
+        &#34;https://nwssp.nhs.wales/ourservices/&#34;
+        &#34;primary-care-services/primary-care-services-documents/&#34;
+    )
+    NHS_WALES_FILES = {
+        &#34;pharmacy&#34;: (
+            &#34;pharmacy-practice-dispensing-data-docs&#34;
+            &#34;/dispensing-data-report-november-2021&#34;
+        )
     }</code></pre>
 </details>
 <h3>Class variables</h3>
@@ -1082,11 +1003,15 @@ Parameters</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="ahah.common.utils.Config.HW_DATA"><code class="name">var <span class="ident">HW_DATA</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="ahah.common.utils.Config.NHS_FILES"><code class="name">var <span class="ident">NHS_FILES</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="ahah.common.utils.Config.NHS_SCOT"><code class="name">var <span class="ident">NHS_SCOT</span></code></dt>
+<dt id="ahah.common.utils.Config.NHS_SCOT_FILES"><code class="name">var <span class="ident">NHS_SCOT_FILES</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1095,6 +1020,14 @@ Parameters</p>
 <div class="desc"></div>
 </dd>
 <dt id="ahah.common.utils.Config.NHS_URL"><code class="name">var <span class="ident">NHS_URL</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="ahah.common.utils.Config.NHS_WALES_FILES"><code class="name">var <span class="ident">NHS_WALES_FILES</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="ahah.common.utils.Config.NHS_WALES_URL"><code class="name">var <span class="ident">NHS_WALES_URL</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1140,24 +1073,18 @@ Parameters</p>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="ahah.common.utils.catch_exterior" href="#ahah.common.utils.catch_exterior">catch_exterior</a></code></li>
 <li><code><a title="ahah.common.utils.clean_air" href="#ahah.common.utils.clean_air">clean_air</a></code></li>
 <li><code><a title="ahah.common.utils.clean_bluespace" href="#ahah.common.utils.clean_bluespace">clean_bluespace</a></code></li>
 <li><code><a title="ahah.common.utils.clean_dentists" href="#ahah.common.utils.clean_dentists">clean_dentists</a></code></li>
-<li><code><a title="ahah.common.utils.clean_fast_food" href="#ahah.common.utils.clean_fast_food">clean_fast_food</a></code></li>
-<li><code><a title="ahah.common.utils.clean_gambling" href="#ahah.common.utils.clean_gambling">clean_gambling</a></code></li>
 <li><code><a title="ahah.common.utils.clean_gpp" href="#ahah.common.utils.clean_gpp">clean_gpp</a></code></li>
-<li><code><a title="ahah.common.utils.clean_greenspace_access" href="#ahah.common.utils.clean_greenspace_access">clean_greenspace_access</a></code></li>
 <li><code><a title="ahah.common.utils.clean_hospitals" href="#ahah.common.utils.clean_hospitals">clean_hospitals</a></code></li>
-<li><code><a title="ahah.common.utils.clean_leisure" href="#ahah.common.utils.clean_leisure">clean_leisure</a></code></li>
-<li><code><a title="ahah.common.utils.clean_offlicences" href="#ahah.common.utils.clean_offlicences">clean_offlicences</a></code></li>
 <li><code><a title="ahah.common.utils.clean_pharmacies" href="#ahah.common.utils.clean_pharmacies">clean_pharmacies</a></code></li>
 <li><code><a title="ahah.common.utils.clean_postcodes" href="#ahah.common.utils.clean_postcodes">clean_postcodes</a></code></li>
-<li><code><a title="ahah.common.utils.clean_pubs" href="#ahah.common.utils.clean_pubs">clean_pubs</a></code></li>
-<li><code><a title="ahah.common.utils.clean_retail" href="#ahah.common.utils.clean_retail">clean_retail</a></code></li>
-<li><code><a title="ahah.common.utils.clean_tobacconists" href="#ahah.common.utils.clean_tobacconists">clean_tobacconists</a></code></li>
+<li><code><a title="ahah.common.utils.combine_lsoa" href="#ahah.common.utils.combine_lsoa">combine_lsoa</a></code></li>
 <li><code><a title="ahah.common.utils.find_partial_pc" href="#ahah.common.utils.find_partial_pc">find_partial_pc</a></code></li>
 <li><code><a title="ahah.common.utils.fix_postcodes" href="#ahah.common.utils.fix_postcodes">fix_postcodes</a></code></li>
-<li><code><a title="ahah.common.utils.subset_retail" href="#ahah.common.utils.subset_retail">subset_retail</a></code></li>
+<li><code><a title="ahah.common.utils.single_parametric_interpolate" href="#ahah.common.utils.single_parametric_interpolate">single_parametric_interpolate</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
@@ -1167,10 +1094,13 @@ Parameters</p>
 <ul class="two-column">
 <li><code><a title="ahah.common.utils.Config.DATA_PATH" href="#ahah.common.utils.Config.DATA_PATH">DATA_PATH</a></code></li>
 <li><code><a title="ahah.common.utils.Config.EDGE_COLS" href="#ahah.common.utils.Config.EDGE_COLS">EDGE_COLS</a></code></li>
+<li><code><a title="ahah.common.utils.Config.HW_DATA" href="#ahah.common.utils.Config.HW_DATA">HW_DATA</a></code></li>
 <li><code><a title="ahah.common.utils.Config.NHS_FILES" href="#ahah.common.utils.Config.NHS_FILES">NHS_FILES</a></code></li>
-<li><code><a title="ahah.common.utils.Config.NHS_SCOT" href="#ahah.common.utils.Config.NHS_SCOT">NHS_SCOT</a></code></li>
+<li><code><a title="ahah.common.utils.Config.NHS_SCOT_FILES" href="#ahah.common.utils.Config.NHS_SCOT_FILES">NHS_SCOT_FILES</a></code></li>
 <li><code><a title="ahah.common.utils.Config.NHS_SCOT_URL" href="#ahah.common.utils.Config.NHS_SCOT_URL">NHS_SCOT_URL</a></code></li>
 <li><code><a title="ahah.common.utils.Config.NHS_URL" href="#ahah.common.utils.Config.NHS_URL">NHS_URL</a></code></li>
+<li><code><a title="ahah.common.utils.Config.NHS_WALES_FILES" href="#ahah.common.utils.Config.NHS_WALES_FILES">NHS_WALES_FILES</a></code></li>
+<li><code><a title="ahah.common.utils.Config.NHS_WALES_URL" href="#ahah.common.utils.Config.NHS_WALES_URL">NHS_WALES_URL</a></code></li>
 <li><code><a title="ahah.common.utils.Config.NODE_COLS" href="#ahah.common.utils.Config.NODE_COLS">NODE_COLS</a></code></li>
 <li><code><a title="ahah.common.utils.Config.OS_GRAPH" href="#ahah.common.utils.Config.OS_GRAPH">OS_GRAPH</a></code></li>
 <li><code><a title="ahah.common.utils.Config.OUT_DATA" href="#ahah.common.utils.Config.OUT_DATA">OUT_DATA</a></code></li>

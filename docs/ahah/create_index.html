@@ -26,110 +26,17 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">import numpy as np
+<pre><code class="python"># FIX: currently uses v2 data to test methods
 import pandas as pd
-from scipy.stats import norm
+import matplotlib.pyplot as plt
 
-from ahah.common.utils import Config, combine_lsoa
+v2 = pd.read_csv(&#34;data/raw/v2/allvariableslsoawdeciles.csv&#34;)
 
+dists = v2.columns[
+    (~v2.columns.str.startswith(&#34;d_&#34;)) &amp; (v2.columns.str.endswith(&#34;_dist&#34;))
+]
 
-def exp_trans(x, df):
-    return -23 * np.log(1 - (x / len(df)) * (1 - np.exp(-100 / 23)))
-
-
-def exp_default(x, df):
-    return norm.ppf((x - 0.5) / len(df))
-
-
-def read_v3():
-    v3 = pd.read_csv(&#34;./data/out/median_dists.csv&#34;)
-    v3_secure = pd.read_csv(&#34;./data/out/010422_CILLIANBERRAGAN_AHAH_MEDIAN_LSOA.csv&#34;)
-    air = pd.read_csv(&#34;./data/out/lsoa_air.csv&#34;)
-    return v3.merge(v3_secure, on=&#34;lsoa11&#34;, how=&#34;outer&#34;).merge(
-        air, on=&#34;lsoa11&#34;, how=&#34;outer&#34;
-    )
-
-
-def read_v2():
-    return pd.read_csv(&#34;./data/raw/v2/allvariableslsoawdeciles.csv&#34;)
-
-
-def process(idx, low_dist, env_dist, air_qual, high_dist):
-    low_dist_ranked = [f&#34;{asset}_ranked&#34; for asset in low_dist]
-    env_dist_ranked = [f&#34;{asset}_ranked&#34; for asset in env_dist]
-    air_qual_ranked = [f&#34;{asset}_ranked&#34; for asset in air_qual]
-    high_dist_ranked = [f&#34;{asset}_ranked&#34; for asset in high_dist]
-
-    low_dist_expd = [f&#34;{asset}_expd&#34; for asset in low_dist]
-    env_dist_expd = [f&#34;{asset}_expd&#34; for asset in env_dist]
-    air_qual_expd = [f&#34;{asset}_expd&#34; for asset in air_qual]
-    high_dist_expd = [f&#34;{asset}_expd&#34; for asset in high_dist]
-
-    idx[low_dist_ranked] = idx[low_dist].rank(method=&#34;min&#34;).astype(int)
-    idx[env_dist_ranked] = idx[env_dist].rank(method=&#34;min&#34;).astype(int)
-    idx[air_qual_ranked] = idx[air_qual].rank(method=&#34;min&#34;).astype(int)
-    idx[high_dist_ranked] = (
-        idx[high_dist].rank(method=&#34;min&#34;, ascending=False).astype(int)
-    )
-
-    # higher values os gspassive are better (prop of pc that is gs for v3)
-    # (number of near gs in v2)
-    idx[env_dist_ranked[0]] = (
-        idx[env_dist[0]].rank(method=&#34;min&#34;, ascending=False).astype(int)
-    )
-
-    idx[low_dist_expd] = exp_default(idx[low_dist_ranked], idx)
-    idx[env_dist_expd] = exp_default(idx[env_dist_ranked], idx)
-    idx[air_qual_expd] = exp_default(idx[air_qual_ranked], idx)
-    idx[high_dist_expd] = exp_default(idx[high_dist_ranked], idx)
-
-    idx[&#34;h_domain&#34;] = idx[low_dist_expd].mean(axis=1)
-    idx[&#34;g_domain&#34;] = idx[env_dist_expd].mean(axis=1)
-    idx[&#34;e_domain&#34;] = idx[air_qual_expd].mean(axis=1)
-    idx[&#34;r_domain&#34;] = idx[high_dist_expd].mean(axis=1)
-
-    idx[&#34;r_rank&#34;] = idx[&#34;r_domain&#34;].rank(method=&#34;min&#34;).astype(int)
-    idx[&#34;h_rank&#34;] = idx[&#34;h_domain&#34;].rank(method=&#34;min&#34;).astype(int)
-    idx[&#34;g_rank&#34;] = idx[&#34;g_domain&#34;].rank(method=&#34;min&#34;).astype(int)
-    idx[&#34;e_rank&#34;] = idx[&#34;e_domain&#34;].rank(method=&#34;min&#34;).astype(int)
-
-    idx[&#34;r_exp&#34;] = exp_trans(idx[&#34;r_rank&#34;], idx)
-    idx[&#34;h_exp&#34;] = exp_trans(idx[&#34;h_rank&#34;], idx)
-    idx[&#34;g_exp&#34;] = exp_trans(idx[&#34;g_rank&#34;], idx)
-    idx[&#34;e_exp&#34;] = exp_trans(idx[&#34;e_rank&#34;], idx)
-
-    idx[&#34;ahah&#34;] = idx[[&#34;r_exp&#34;, &#34;h_exp&#34;, &#34;g_exp&#34;, &#34;e_exp&#34;]].mean(axis=1)
-    idx[&#34;r_ahah&#34;] = idx[&#34;ahah&#34;].rank(method=&#34;min&#34;).astype(int)
-    idx[&#34;d_ahah&#34;] = pd.qcut(idx[&#34;r_ahah&#34;], 10, labels=False)
-    return idx
-
-
-if __name__ == &#34;__main__&#34;:
-    low_dist = [&#34;gpp&#34;, &#34;dentists&#34;, &#34;pharmacies&#34;, &#34;hospitals&#34;, &#34;leisure&#34;]
-    env_dist = [&#34;gspassive&#34;, &#34;bluespace&#34;]
-    air_qual = [&#34;no22019&#34;, &#34;so22019&#34;, &#34;pm102019g&#34;]
-    high_dist = [&#34;gambling&#34;, &#34;offlicences&#34;, &#34;pubs&#34;, &#34;tobacconists&#34;, &#34;fastfood&#34;]
-    v3 = read_v3()
-    v3 = process(v3, low_dist, env_dist, air_qual, high_dist)
-
-    low_dist = [&#34;gpp_dist&#34;, &#34;ed_dist&#34;, &#34;dent_dist&#34;, &#34;pharm_dist&#34;, &#34;leis_dist&#34;]
-    env_dist = [&#34;green_pas&#34;, &#34;blue_dist&#34;]
-    air_qual = [&#34;no2_mean&#34;, &#34;pm10_mean&#34;, &#34;so2_mean&#34;]
-    high_dist = [&#34;gamb_dist&#34;, &#34;ffood_dist&#34;, &#34;pubs_dist&#34;, &#34;off_dist&#34;, &#34;tobac_dist&#34;]
-    v2 = read_v2()
-    v2 = process(v2, low_dist, env_dist, air_qual, high_dist)
-
-    lsoa = combine_lsoa(
-        eng=Config.RAW_DATA / &#34;lsoa&#34; / &#34;england_lsoa_2011.shp&#34;,
-        scot=Config.RAW_DATA / &#34;lsoa&#34; / &#34;SG_DataZone_Bdry_2011.shp&#34;,
-        wales=Config.RAW_DATA / &#34;lsoa&#34; / &#34;lsoa_wales_2011.gpkg&#34;,
-    )
-
-    v3 = lsoa.merge(v3, on=&#34;lsoa11&#34;, how=&#34;outer&#34;)
-    v2 = lsoa.merge(v2, on=&#34;lsoa11&#34;, how=&#34;outer&#34;)
-
-    v3.to_file(Config.OUT_DATA / &#34;v3_lsoa.gpkg&#34;, driver=&#34;GPKG&#34;)
-    v2.to_file(Config.OUT_DATA / &#34;v2_lsoa.gpkg&#34;, driver=&#34;GPKG&#34;)</code></pre>
+v2[dists].rank().astype(int)</code></pre>
 </details>
 </section>
 <section>
@@ -137,125 +44,6 @@ if __name__ == &#34;__main__&#34;:
 <section>
 </section>
 <section>
-<h2 class="section-title" id="header-functions">Functions</h2>
-<dl>
-<dt id="ahah.create_index.exp_default"><code class="name flex">
-<span>def <span class="ident">exp_default</span></span>(<span>x, df)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def exp_default(x, df):
-    return norm.ppf((x - 0.5) / len(df))</code></pre>
-</details>
-</dd>
-<dt id="ahah.create_index.exp_trans"><code class="name flex">
-<span>def <span class="ident">exp_trans</span></span>(<span>x, df)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def exp_trans(x, df):
-    return -23 * np.log(1 - (x / len(df)) * (1 - np.exp(-100 / 23)))</code></pre>
-</details>
-</dd>
-<dt id="ahah.create_index.process"><code class="name flex">
-<span>def <span class="ident">process</span></span>(<span>idx, low_dist, env_dist, air_qual, high_dist)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def process(idx, low_dist, env_dist, air_qual, high_dist):
-    low_dist_ranked = [f&#34;{asset}_ranked&#34; for asset in low_dist]
-    env_dist_ranked = [f&#34;{asset}_ranked&#34; for asset in env_dist]
-    air_qual_ranked = [f&#34;{asset}_ranked&#34; for asset in air_qual]
-    high_dist_ranked = [f&#34;{asset}_ranked&#34; for asset in high_dist]
-
-    low_dist_expd = [f&#34;{asset}_expd&#34; for asset in low_dist]
-    env_dist_expd = [f&#34;{asset}_expd&#34; for asset in env_dist]
-    air_qual_expd = [f&#34;{asset}_expd&#34; for asset in air_qual]
-    high_dist_expd = [f&#34;{asset}_expd&#34; for asset in high_dist]
-
-    idx[low_dist_ranked] = idx[low_dist].rank(method=&#34;min&#34;).astype(int)
-    idx[env_dist_ranked] = idx[env_dist].rank(method=&#34;min&#34;).astype(int)
-    idx[air_qual_ranked] = idx[air_qual].rank(method=&#34;min&#34;).astype(int)
-    idx[high_dist_ranked] = (
-        idx[high_dist].rank(method=&#34;min&#34;, ascending=False).astype(int)
-    )
-
-    # higher values os gspassive are better (prop of pc that is gs for v3)
-    # (number of near gs in v2)
-    idx[env_dist_ranked[0]] = (
-        idx[env_dist[0]].rank(method=&#34;min&#34;, ascending=False).astype(int)
-    )
-
-    idx[low_dist_expd] = exp_default(idx[low_dist_ranked], idx)
-    idx[env_dist_expd] = exp_default(idx[env_dist_ranked], idx)
-    idx[air_qual_expd] = exp_default(idx[air_qual_ranked], idx)
-    idx[high_dist_expd] = exp_default(idx[high_dist_ranked], idx)
-
-    idx[&#34;h_domain&#34;] = idx[low_dist_expd].mean(axis=1)
-    idx[&#34;g_domain&#34;] = idx[env_dist_expd].mean(axis=1)
-    idx[&#34;e_domain&#34;] = idx[air_qual_expd].mean(axis=1)
-    idx[&#34;r_domain&#34;] = idx[high_dist_expd].mean(axis=1)
-
-    idx[&#34;r_rank&#34;] = idx[&#34;r_domain&#34;].rank(method=&#34;min&#34;).astype(int)
-    idx[&#34;h_rank&#34;] = idx[&#34;h_domain&#34;].rank(method=&#34;min&#34;).astype(int)
-    idx[&#34;g_rank&#34;] = idx[&#34;g_domain&#34;].rank(method=&#34;min&#34;).astype(int)
-    idx[&#34;e_rank&#34;] = idx[&#34;e_domain&#34;].rank(method=&#34;min&#34;).astype(int)
-
-    idx[&#34;r_exp&#34;] = exp_trans(idx[&#34;r_rank&#34;], idx)
-    idx[&#34;h_exp&#34;] = exp_trans(idx[&#34;h_rank&#34;], idx)
-    idx[&#34;g_exp&#34;] = exp_trans(idx[&#34;g_rank&#34;], idx)
-    idx[&#34;e_exp&#34;] = exp_trans(idx[&#34;e_rank&#34;], idx)
-
-    idx[&#34;ahah&#34;] = idx[[&#34;r_exp&#34;, &#34;h_exp&#34;, &#34;g_exp&#34;, &#34;e_exp&#34;]].mean(axis=1)
-    idx[&#34;r_ahah&#34;] = idx[&#34;ahah&#34;].rank(method=&#34;min&#34;).astype(int)
-    idx[&#34;d_ahah&#34;] = pd.qcut(idx[&#34;r_ahah&#34;], 10, labels=False)
-    return idx</code></pre>
-</details>
-</dd>
-<dt id="ahah.create_index.read_v2"><code class="name flex">
-<span>def <span class="ident">read_v2</span></span>(<span>)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def read_v2():
-    return pd.read_csv(&#34;./data/raw/v2/allvariableslsoawdeciles.csv&#34;)</code></pre>
-</details>
-</dd>
-<dt id="ahah.create_index.read_v3"><code class="name flex">
-<span>def <span class="ident">read_v3</span></span>(<span>)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def read_v3():
-    v3 = pd.read_csv(&#34;./data/out/median_dists.csv&#34;)
-    v3_secure = pd.read_csv(&#34;./data/out/010422_CILLIANBERRAGAN_AHAH_MEDIAN_LSOA.csv&#34;)
-    air = pd.read_csv(&#34;./data/out/lsoa_air.csv&#34;)
-    return v3.merge(v3_secure, on=&#34;lsoa11&#34;, how=&#34;outer&#34;).merge(
-        air, on=&#34;lsoa11&#34;, how=&#34;outer&#34;
-    )</code></pre>
-</details>
-</dd>
-</dl>
 </section>
 <section>
 </section>
@@ -269,15 +57,6 @@ if __name__ == &#34;__main__&#34;:
 <li><h3>Super-module</h3>
 <ul>
 <li><code><a title="ahah" href="index.html">ahah</a></code></li>
-</ul>
-</li>
-<li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="">
-<li><code><a title="ahah.create_index.exp_default" href="#ahah.create_index.exp_default">exp_default</a></code></li>
-<li><code><a title="ahah.create_index.exp_trans" href="#ahah.create_index.exp_trans">exp_trans</a></code></li>
-<li><code><a title="ahah.create_index.process" href="#ahah.create_index.process">process</a></code></li>
-<li><code><a title="ahah.create_index.read_v2" href="#ahah.create_index.read_v2">read_v2</a></code></li>
-<li><code><a title="ahah.create_index.read_v3" href="#ahah.create_index.read_v3">read_v3</a></code></li>
 </ul>
 </li>
 </ul>

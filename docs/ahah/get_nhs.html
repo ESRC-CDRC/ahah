@@ -26,13 +26,11 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">from pathlib import Path
-from zipfile import ZipFile
-
-import requests
-
+<pre><code class="python">import requests
 from ahah.common.logger import logger
 from ahah.common.utils import Config
+from pathlib import Path
+from zipfile import ZipFile
 
 
 def download_url(url: str, save_path: Path, chunk_size: int = 128):
@@ -69,20 +67,13 @@ if __name__ == &#34;__main__&#34;:
         else:
             logger.warning(f&#34;{file} exists: skipping {Config.NHS_URL + url}&#34;)
 
-    for name, url in Config.NHS_SCOT_FILES.items():
+    for name, url in Config.NHS_SCOT.items():
         file = Config.RAW_DATA / &#34;nhs&#34; / &#34;scotland&#34; / f&#34;{name}.csv&#34;
         if not file.exists():
             download_url(Config.NHS_SCOT_URL + url, save_path=file)
             logger.debug(f&#34;{Config.NHS_SCOT_URL + url} saved to {file}&#34;)
         else:
-            logger.warning(f&#34;{file} exists: skipping {Config.NHS_SCOT_URL + url}&#34;)
-
-    for name, url in Config.NHS_WALES_FILES.items():
-        file = Config.RAW_DATA / &#34;nhs&#34; / &#34;wales&#34; / f&#34;{name}.xls&#34;
-        if not file.exists():
-            download_url(Config.NHS_WALES_URL + url, save_path=file)
-        else:
-            logger.warning(f&#34;{file} exists: skipping {Config.NHS_WALES_URL + url}&#34;)</code></pre>
+            logger.warning(f&#34;{file} exists: skipping {Config.NHS_SCOT_URL + url}&#34;)</code></pre>
 </details>
 </section>
 <section>
