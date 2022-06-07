@@ -7,7 +7,6 @@ from ahah.common.utils import (
     clean_bluespace,
     clean_dentists,
     clean_gpp,
-    clean_greenspace_access,
     clean_hospitals,
     clean_pharmacies,
     clean_postcodes,
@@ -145,20 +144,6 @@ if __name__ == "__main__":
         wales=Config.RAW_DATA / "nhs" / "wales" / "pharmacy.xls",
         postcodes=all_pcs,
     )
-    # greenspace: cudf.DataFrame = clean_greenspace_access(
-    #     england=Config.RAW_DATA
-    #     / "greenspace"
-    #     / "en_walks"
-    #     / "gis_osm_roads_free_1.shp",
-    #     scotland=Config.RAW_DATA
-    #     / "greenspace"
-    #     / "sc_walks"
-    #     / "gis_osm_roads_free_1.shp",
-    #     wales=Config.RAW_DATA
-    #     / "greenspace"
-    #     / "wales_walks"
-    #     / "gis_osm_roads_free_1.shp",
-    # )
     bluespace: cudf.DataFrame = clean_bluespace(Config.RAW_DATA / "bluespace")
 
     logger.debug("Finding nearest node to postcodes...")
