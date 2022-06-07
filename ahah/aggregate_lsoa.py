@@ -10,19 +10,15 @@ from ahah.common.utils import Config, fix_postcodes
 
 def read_dists(dist_files: Generator, pcs: cudf.DataFrame, ndvi) -> pd.DataFrame:
     dfs = (
-        cudf.concat(
-            [
-                cudf.read_csv(file)
-                .drop_duplicates("postcode")
-                .set_index("postcode")
-                .rename(columns={"distance": re.split(r"_|\.", file.name)[1]})
-                for file in dist_files
-            ],
-            axis=1,
-        )
-        .reset_index()
-        .pipe(fix_postcodes)
+        [
+            cudf.read_csv(file)
+            .drop_duplicates("postcode")
+            .set_index("postcode")
+            .rename(columns={"distance": re.split(r"_|\.", file.name)[1]})
+            for file in dist_files
+        ],
     )
+    dfs = cudf.concat(dfs, axis=1).reset_index().pipe(fix_postcodes)
 
     return (
         dfs.set_index("postcode")
