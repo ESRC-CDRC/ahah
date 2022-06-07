@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Union
 
 import cudf
-import dask_geopandas
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -41,7 +40,7 @@ class Config:
     # https://digital.nhs.uk/services/organisation-data-service/data-downloads
     NHS_URL = "https://files.digital.nhs.uk/assets/ods/current/"
     NHS_FILES = {
-        # 25 Feburary 2022 - Checked 22 March 2022
+        # 25 February 2022 - Checked 22 March 2022
         "gpp": "epraccur.zip",
         # ""
         "dentists": "egdpprac.zip",
@@ -338,41 +337,6 @@ def clean_air(path: Path, col: "str"):
     air = air[air[col] != "MISSING"]
     air[col] = air[col].astype(float)
     return air
-
-
-# def clean_greenspace_access(path: Path) -> cudf.DataFrame:
-#     logger.info("Cleaning greenspace access...")
-#     greenspace = gpd.read_file(path)
-#     greenspace["easting"], greenspace["northing"] = (
-#         greenspace.geometry.x,
-#         greenspace.geometry.y,
-#     )
-#     return cudf.DataFrame(greenspace.drop("geometry", axis=1)).loc[
-#         :, ["id", "easting", "northing"]
-#     ]
-
-
-def clean_greenspace_access(england: Path, scotland: Path, wales: Path):
-    england = gpd.read_file(england, crs=4326)
-    scotland = gpd.read_file(scotland, crs=4326)
-    wales = gpd.read_file(wales, crs=4326)
-    greenspace = dask_geopandas.from_geopandas(
-        wales.append(england).append(scotland), npartitions=os.cpu_count()
-    )
-
-    greenspace = greenspace[greenspace["fclass"] == "path"].to_crs(27700).compute()
-
-    greenspace = (
-        greenspace.geometry.boundary.apply(lambda x: x.geoms).explode().dropna()
-    )
-    greenspace = gpd.GeoDataFrame(greenspace.rename("geometry"), geometry="geometry")
-    greenspace["easting"] = greenspace.geometry.x
-    greenspace["northing"] = greenspace.geometry.y
-
-    greenspace["easting"] = greenspace["easting"].round(-2).astype(int)
-    greenspace["northing"] = greenspace["northing"].round(-2).astype(int)
-
-    return cudf.from_pandas(greenspace[["easting", "northing"]]).drop_duplicates()
 
 
 def single_parametric_interpolate(obj_x_loc, obj_y_loc, num_pts: int):
