@@ -26,16 +26,34 @@ def read_v2():
     return pd.read_csv("./data/raw/v2/allvariableslsoawdeciles.csv")
 
 
-def process(idx, low_dist, env_dist, air_qual, high_dist):
-    low_dist_ranked = [f"{asset}_ranked" for asset in low_dist]
-    env_dist_ranked = [f"{asset}_ranked" for asset in env_dist]
-    air_qual_ranked = [f"{asset}_ranked" for asset in air_qual]
-    high_dist_ranked = [f"{asset}_ranked" for asset in high_dist]
+def process(idx, ahv: str):
+    low_dist = ["gp", "dent", "phar", "hosp", "leis"]
+    env_dist = ["gpas", "blue"]
+    air_qual = ["no2", "so2", "pm10"]
+    high_dist = ["gamb", "off", "pubs", "tob", "ffood"]
+
+    all_dists = low_dist + env_dist + air_qual + high_dist
+    idx = idx.rename(columns={col: f"{ahv}{col}" for col in all_dists})
+
+    low_dist = [f"{ahv}{asset}" for asset in low_dist]
+    env_dist = [f"{ahv}{asset}" for asset in env_dist]
+    air_qual = [f"{ahv}{asset}" for asset in air_qual]
+    high_dist = [f"{ahv}{asset}" for asset in high_dist]
+
+    low_dist_ranked = [f"{asset}_rnk" for asset in low_dist]
+    env_dist_ranked = [f"{asset}_rnk" for asset in env_dist]
+    air_qual_ranked = [f"{asset}_rnk" for asset in air_qual]
+    high_dist_ranked = [f"{asset}_rnk" for asset in high_dist]
 
     low_dist_expd = [f"{asset}_expd" for asset in low_dist]
     env_dist_expd = [f"{asset}_expd" for asset in env_dist]
     air_qual_expd = [f"{asset}_expd" for asset in air_qual]
     high_dist_expd = [f"{asset}_expd" for asset in high_dist]
+
+    low_dist_pct = [f"{asset}_pct" for asset in low_dist]
+    env_dist_pct = [f"{asset}_pct" for asset in env_dist]
+    air_qual_pct = [f"{asset}_pct" for asset in air_qual]
+    high_dist_pct = [f"{asset}_pct" for asset in high_dist]
 
     idx[low_dist_ranked] = idx[low_dist].rank(method="min").astype(int)
     idx[env_dist_ranked] = idx[env_dist].rank(method="min").astype(int)
@@ -55,50 +73,78 @@ def process(idx, low_dist, env_dist, air_qual, high_dist):
     idx[air_qual_expd] = exp_default(idx[air_qual_ranked], idx)
     idx[high_dist_expd] = exp_default(idx[high_dist_ranked], idx)
 
-    idx["h_domain"] = idx[low_dist_expd].mean(axis=1)
-    idx["g_domain"] = idx[env_dist_expd].mean(axis=1)
-    idx["e_domain"] = idx[air_qual_expd].mean(axis=1)
-    idx["r_domain"] = idx[high_dist_expd].mean(axis=1)
+    idx[low_dist_pct] = idx[low_dist_ranked].apply(
+        lambda x: (x / x.max() * 100).astype(int)
+    )
+    idx[env_dist_pct] = idx[env_dist_ranked].apply(
+        lambda x: (x / x.max() * 100).astype(int)
+    )
+    idx[air_qual_pct] = idx[air_qual_ranked].apply(
+        lambda x: (x / x.max() * 100).astype(int)
+    )
+    idx[high_dist_pct] = idx[high_dist_ranked].apply(
+        lambda x: (x / x.max() * 100).astype(int)
+    )
 
-    idx["r_rank"] = idx["r_domain"].rank(method="min").astype(int)
-    idx["h_rank"] = idx["h_domain"].rank(method="min").astype(int)
-    idx["g_rank"] = idx["g_domain"].rank(method="min").astype(int)
-    idx["e_rank"] = idx["e_domain"].rank(method="min").astype(int)
+    idx[f"{ahv}h"] = idx[low_dist_expd].mean(axis=1)
+    idx[f"{ahv}g"] = idx[env_dist_expd].mean(axis=1)
+    idx[f"{ahv}e"] = idx[air_qual_expd].mean(axis=1)
+    idx[f"{ahv}r"] = idx[high_dist_expd].mean(axis=1)
 
-    idx["r_exp"] = exp_trans(idx["r_rank"], idx)
-    idx["h_exp"] = exp_trans(idx["h_rank"], idx)
-    idx["g_exp"] = exp_trans(idx["g_rank"], idx)
-    idx["e_exp"] = exp_trans(idx["e_rank"], idx)
+    idx[f"{ahv}h_rnk"] = idx[f"{ahv}h"].rank(method="min").astype(int)
+    idx[f"{ahv}g_rnk"] = idx[f"{ahv}g"].rank(method="min").astype(int)
+    idx[f"{ahv}e_rnk"] = idx[f"{ahv}e"].rank(method="min").astype(int)
+    idx[f"{ahv}r_rnk"] = idx[f"{ahv}r"].rank(method="min").astype(int)
 
-    idx["ahah"] = idx[["r_exp", "h_exp", "g_exp", "e_exp"]].mean(axis=1)
-    idx["r_ahah"] = idx["ahah"].rank(method="min").astype(int)
-    idx["d_ahah"] = pd.qcut(idx["r_ahah"], 10, labels=False)
+    idx[f"{ahv}h_pct"] = pd.qcut(idx[f"{ahv}h_rnk"], 100, labels=False) + 1
+    idx[f"{ahv}g_pct"] = pd.qcut(idx[f"{ahv}g_rnk"], 100, labels=False) + 1
+    idx[f"{ahv}e_pct"] = pd.qcut(idx[f"{ahv}e_rnk"], 100, labels=False) + 1
+    idx[f"{ahv}r_pct"] = pd.qcut(idx[f"{ahv}r_rnk"], 100, labels=False) + 1
+
+    idx["h_expd"] = exp_trans(idx[f"{ahv}h_rnk"], idx)
+    idx["g_expd"] = exp_trans(idx[f"{ahv}g_rnk"], idx)
+    idx["e_expd"] = exp_trans(idx[f"{ahv}e_rnk"], idx)
+    idx["r_expd"] = exp_trans(idx[f"{ahv}r_rnk"], idx)
+
+    idx[f"{ahv}ahah"] = idx[["r_expd", "h_expd", "g_expd", "e_expd"]].mean(axis=1)
+    idx[f"{ahv}ahah_rn"] = idx[f"{ahv}ahah"].rank(method="min").astype(int)
+    idx[f"{ahv}ahah_pc"] = pd.qcut(idx[f"{ahv}ahah_rn"], 100, labels=False) + 1
     return idx
 
 
 if __name__ == "__main__":
-    low_dist = ["gpp", "dentists", "pharmacies", "hospitals", "leisure"]
-    env_dist = ["gspassive", "bluespace"]
-    air_qual = ["no22019", "so22019", "pm102019g"]
-    high_dist = ["gambling", "offlicences", "pubs", "tobacconists", "fastfood"]
     v3 = read_v3()
-    v3 = process(v3, low_dist, env_dist, air_qual, high_dist)
-
-    low_dist = ["gpp_dist", "ed_dist", "dent_dist", "pharm_dist", "leis_dist"]
-    env_dist = ["green_pas", "blue_dist"]
-    air_qual = ["no2_mean", "pm10_mean", "so2_mean"]
-    high_dist = ["gamb_dist", "ffood_dist", "pubs_dist", "off_dist", "tobac_dist"]
-    v2 = read_v2()
-    v2 = process(v2, low_dist, env_dist, air_qual, high_dist)
-
-    lsoa = combine_lsoa(
-        eng=Config.RAW_DATA / "lsoa" / "england_lsoa_2011.shp",
-        scot=Config.RAW_DATA / "lsoa" / "SG_DataZone_Bdry_2011.shp",
-        wales=Config.RAW_DATA / "lsoa" / "lsoa_wales_2011.gpkg",
+    v3 = v3.rename(
+        columns={
+            "gpp": "gp",
+            "dentists": "dent",
+            "pharmacies": "phar",
+            "hospitals": "hosp",
+            "leisure": "leis",
+            "gspassive": "gpas",
+            "bluespace": "blue",
+            "no22019": "no2",
+            "so22019": "so2",
+            "pm102019g": "pm10",
+            "fastfood": "ffood",
+            "gambling": "gamb",
+            "offlicences": "off",
+            "tobacconists": "tob",
+        }
     )
+    v3 = v3.drop(
+        [
+            "easting_x",
+            "northing_x",
+            "node_id_x",
+            "easting_y",
+            "northing_y",
+            "node_id_y",
+            "greenspace",
+        ],
+        axis=1,
+    )
+    v3 = process(v3, ahv="ah3")
+    v3 = v3[[c for c in v3.columns if not c.endswith("expd")]]
 
-    v3 = lsoa.merge(v3, on="lsoa11", how="outer")
-    v2 = lsoa.merge(v2, on="lsoa11", how="outer")
-
-    v3.to_file(Config.OUT_DATA / "v3_lsoa.gpkg", driver="GPKG")
-    v2.to_file(Config.OUT_DATA / "v2_lsoa.gpkg", driver="GPKG")
+    v3.to_csv(Config.OUT_DATA / "AHAH_V3.csv", index=False)
