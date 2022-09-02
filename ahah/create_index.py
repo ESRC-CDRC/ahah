@@ -2,8 +2,6 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from ahah.common.utils import Config, combine_lsoa
-
 
 def exp_trans(x, df):
     return -23 * np.log(1 - (x / len(df)) * (1 - np.exp(-100 / 23)))

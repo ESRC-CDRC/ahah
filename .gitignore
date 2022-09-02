@@ -6,6 +6,8 @@ covid_access
 data_story.Rmd
 debug.log
 
+reports/
+
 __pycache__
 
 .mypy_cache

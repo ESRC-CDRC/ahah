@@ -39,6 +39,8 @@ This is a computationally intense calculation, with the total road network used 
 
 This calculation was made possible through the GPU accelerated Python library `cugraph`, part of the [NVIDIA RAPIDS ecosystem](https://rapids.ai), allowing the computation to be highly parallel, taking minutes, rather than days.
 
+## Methodology
+
 ## Project layout
 
 ```bash
@@ -83,6 +85,34 @@ ahah
   - Each POI is assigned the postcodes that fall within their KNN, used
     to determine buffer suitability when converted to a graph
 - All processed data written to respective files
+
+#### 3. Combine into index `ahah/create_index.py`
+
+- Combine both processed secure and open data
+- Intermediate variables calculated
+  - All variables ranked
+  - Exponential default calculated for all ranked variables
+  - Percentiles calculated from ranked variables
+- Domains Scores calculated
+  - Domain scores calculated from mean of each domains input variables
+  - Domain scores ranked
+  - Domain percentiles calculated
+  - Exponential transformation calculated for each domain
+- AHAH index calculated from mean of domain exponential transformations
+  - Ranked AHAH index calculated
+  - AHAH percentiles calculated
+
+Exponential default:
+
+$$
+(x-0.5)/len(y)
+$$
+
+Exponential transformation:
+
+$$
+X=-23 ln(1-R(1-exp(-100/23)))
+$$
 
 #### 3. Routing `ahah/routing.py`
 
