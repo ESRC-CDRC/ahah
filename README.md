@@ -39,8 +39,6 @@ This is a computationally intense calculation, with the total road network used 
 
 This calculation was made possible through the GPU accelerated Python library `cugraph`, part of the [NVIDIA RAPIDS ecosystem](https://rapids.ai), allowing the computation to be highly parallel, taking minutes, rather than days.
 
-## Methodology
-
 ## Project layout
 
 ```bash
