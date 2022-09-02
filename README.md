@@ -84,7 +84,27 @@ ahah
     to determine buffer suitability when converted to a graph
 - All processed data written to respective files
 
-#### 3. Combine into index `ahah/create_index.py`
+#### 3. Routing `ahah/routing.py`
+
+> The routing stage of this project primarily makes use of the RAPIDS
+> `cugraph` library. This stage iterates sequentially over each POI of a
+> certain type and finds routes to every postcode within a certain
+> buffer.
+
+- Iterate over POI of a certain type
+- Create `cuspatial.Graph()` with subset of road nodes using
+  `cuspatial.points_in_spatial_window` with buffer
+- Run _single-source shortest path_ from POI to each node in the sub
+  graph
+  - `cugraph.sssp` takes into account `weights`, which in this case are
+    the `time-weighted` distance of each connection between nodes as
+    reported by OSM.
+- `SSSP` distances subset to return only nodes associated with
+  postcodes, these distances are added iteratively to a complete
+  dataframe of postcodes of which the smallest value for each postcode
+  is taken
+
+#### 4. Combine into index `ahah/create_index.py`
 
 - Combine both processed secure and open data
 - Intermediate variables calculated
@@ -111,26 +131,6 @@ Exponential transformation:
 $$
 X=-23 ln(1-R(1-exp(-100/23)))
 $$
-
-#### 3. Routing `ahah/routing.py`
-
-> The routing stage of this project primarily makes use of the RAPIDS
-> `cugraph` library. This stage iterates sequentially over each POI of a
-> certain type and finds routes to every postcode within a certain
-> buffer.
-
-- Iterate over POI of a certain type
-- Create `cuspatial.Graph()` with subset of road nodes using
-  `cuspatial.points_in_spatial_window` with buffer
-- Run _single-source shortest path_ from POI to each node in the sub
-  graph
-  - `cugraph.sssp` takes into account `weights`, which in this case are
-    the `time-weighted` distance of each connection between nodes as
-    reported by OSM.
-- `SSSP` distances subset to return only nodes associated with
-  postcodes, these distances are added iteratively to a complete
-  dataframe of postcodes of which the smallest value for each postcode
-  is taken
 
 ## AHAH Data Sources
 
