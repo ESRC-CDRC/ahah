@@ -57,7 +57,25 @@ ahah
 
 ## Methodology
 
-#### 1. OS Open road network `ahah/os_highways.py`
+Accessibility measures were created using the `cugraph` GPU accelerated Python library for parallel processing of graph networks, in conjunction with the OS Open Road network. Unlike Routino, which uses Open Street Map data, the OS Open Road Network provides more accurate road speed estimates for UK roads.
+
+In this study, we measured the network distance (travel time) between the centroid of each active postcode in Great Britain to the coordinates of each unique health asset (e.g. GP practice). Measured network distances for each indicator for postcodes were aggregated to the LSOA level, providing average network distance for each indicator (as a measure of accessibility). All other indicators were also summarised for LSOAs. The indicators within each domain were standardised by ranking and transformed to the standard normal distribution. The direction of each variable was dictated by the literature (e.g. accessibility to fast food outlets were identified as health negating, wheras accessibility to GP practices was health promoting).
+
+To calculate our overall index (and domain specific values), we followed the methodology of the 2015 IMD. For each domain, we ranked each domain $R$ and any LSOA scaled to the range $[0,1]$. $R=1/N$ for the most 'health promoting' LSOA and $R=N/N$ for the least promoting, where $N$ is the number of LSOAs in Great Britain. Exponential transformation of the ranked domainscores was then applied to LSOA values to reduce ‘cancellation effects’. So, for example, high levels of accessibility in one domainare not completely cancelled out by low levels of accessibility in a different domain. The exponential  transformation  applied also puts  more  emphasis  on  the LSOAs  at  theend  of  the health demoting side of the distribution and so facilitates identification of the neighbourhoods with the worsthealth promoting aspects. The exponential transformed indicator score $X$ is given by:
+
+$$
+X=−23ln(1−R(1−exp^{−100/23}))
+$$
+
+where ‘ln’ denotes natural logarithm and ‘exp’ the exponential transformation.
+
+The main domains across our  indicators: retail  services,  health  services, physical  environment and  air quality then were combined to form an overall index of‘Access to Healthy Assets and Hazards’ (AHAH)
+
+![](./overview.png)
+
+## Scripts
+
+### 1. Process road network `ahah/os_highways.py`
 
 - Speed estimates given to each road, based on `formOfway` and
   `roadClassification`
@@ -66,7 +84,7 @@ ahah
 - Node ID converted to sequential integers and saved with edges as
   parquet files
 
-#### 2. Process Data `ahah/process_data.py`
+### 2. Process Data `ahah/process_routing.py`
 
 > This stage prepares the `nodes`, `postcodes`, and `poi` data for use
 > in RAPIDS `cugraph`. Makes use of utility functions to assist with
@@ -84,7 +102,7 @@ ahah
     to determine buffer suitability when converted to a graph
 - All processed data written to respective files
 
-#### 3. Routing `ahah/routing.py`
+### 3. Routing `ahah/routing.py`
 
 > The routing stage of this project primarily makes use of the RAPIDS
 > `cugraph` library. This stage iterates sequentially over each POI of a
@@ -104,7 +122,7 @@ ahah
   dataframe of postcodes of which the smallest value for each postcode
   is taken
 
-#### 4. Combine into index `ahah/create_index.py`
+## 4. Combine into index `ahah/create_index.py`
 
 - Combine both processed secure and open data
 - Intermediate variables calculated
