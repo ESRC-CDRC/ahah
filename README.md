@@ -71,7 +71,9 @@ where ‘ln’ denotes natural logarithm and ‘exp’ the exponential transform
 
 The main domains across our  indicators: retail  services,  health  services, physical  environment and  air quality then were combined to form an overall index of‘Access to Healthy Assets and Hazards’ (AHAH)
 
+<div style="text-align: center;">
 ![](./overview.png)
+</div>
 
 ## Scripts
 
