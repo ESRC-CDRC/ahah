@@ -142,18 +142,6 @@ The main domains across our  indicators: retail  services,  health  services, ph
   - Ranked AHAH index calculated
   - AHAH percentiles calculated
 
-Exponential default:
-
-$$
-(x-0.5)/len(y)
-$$
-
-Exponential transformation:
-
-$$
-X=-23 ln(1-R(1-exp(-100/23)))
-$$
-
 ## AHAH Data Sources
 
 > See the [AHAH V2 FigShare
