@@ -126,7 +126,7 @@ The main domains across our  indicators: retail  services,  health  services, ph
   dataframe of postcodes of which the smallest value for each postcode
   is taken
 
-## 4. Combine into index `ahah/create_index.py`
+### 4. Combine into index `ahah/create_index.py`
 
 - Combine both processed secure and open data
 - Intermediate variables calculated
