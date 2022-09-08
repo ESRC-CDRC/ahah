@@ -12,8 +12,7 @@
 </div>
 
 <p align="center">
-<a href="https://cjber.github.io/ahah/ahah">Documentation</a> •
-<a href="todo">FigShare (soon)</a>
+<a href="https://cjber.github.io/ahah/">Documentation</a>
 </p>
 
 [Cillian
