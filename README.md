@@ -11,10 +11,6 @@
 
 </div>
 
-<p align="center">
-<a href="https://cjber.github.io/ahah/">Documentation</a>
-</p>
-
 [Cillian
 Berragan](https://www.liverpool.ac.uk/geographic-data-science/our-people/)
 \[[`@cjberragan`](http://twitter.com/cjberragan)\]<sup>1\*</sup> [Mark
