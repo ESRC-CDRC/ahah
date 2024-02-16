@@ -25,11 +25,12 @@ def process_edges(edges: pd.DataFrame) -> pd.DataFrame:
     pd.DataFrame:
         OS highways df with time weighted estimates
     """
+
     a_roads = ["A Road", "A Road Primary"]
     b_roads = ["B Road", "B Road Primary"]
 
     edges["speed_estimate"] = -1
-    edges = edges.set_index(["formOfWay", "roadClassification"])
+    edges = edges.set_index(["form_of_way", "road_classification"])
 
     edges.loc[idx[:, "Motorway"], "speed_estimate"] = 67
     edges.loc[idx["Dual Carriageway", a_roads], "speed_estimate"] = 57
@@ -47,7 +48,7 @@ def process_edges(edges: pd.DataFrame) -> pd.DataFrame:
         * 60,
     )
 
-    return edges[["startNode", "endNode", "time_weighted", "length"]]
+    return edges[["start_node", "end_node", "time_weighted", "length"]]
 
 
 def process_ferry(ferry_df):
@@ -64,8 +65,8 @@ def process_ferry(ferry_df):
     ferry_nodes["northing"] = ferry_nodes["node_id"].apply(lambda row: row.y)
 
     ferry_edges = ferry_df[["node_id", "geometry"]].copy()
-    ferry_edges["startNode"] = ferry_edges["node_id"].apply(lambda row: row[0])
-    ferry_edges["endNode"] = ferry_edges["node_id"].apply(lambda row: row[1])
+    ferry_edges["start_node"] = ferry_edges["node_id"].apply(lambda row: row[0])
+    ferry_edges["end_node"] = ferry_edges["node_id"].apply(lambda row: row[1])
     ferry_edges["length"] = ferry_edges.geometry.length
     ferry_edges = ferry_edges.assign(
         time_weighted=(ferry_edges["length"].astype(float) / 1000) / 25 * 1.609344 * 60
@@ -73,11 +74,11 @@ def process_ferry(ferry_df):
 
     ferry_nodes["node_id"] = ferry_nodes["node_id"].astype(str)
     ferry_nodes = cudf.from_pandas(ferry_nodes[["node_id", "easting", "northing"]])
-    ferry_edges["startNode"] = ferry_edges["startNode"].astype(str)
-    ferry_edges["endNode"] = ferry_edges["endNode"].astype(str)
+    ferry_edges["start_node"] = ferry_edges["start_node"].astype(str)
+    ferry_edges["end_node"] = ferry_edges["end_node"].astype(str)
     ferry_edges = cudf.from_pandas(
-        ferry_edges.rename(columns={"FERRY_FROM": "startNode", "FERRY_TO": "endNode"})[
-            ["startNode", "endNode", "length", "time_weighted"]
+        ferry_edges.rename(columns={"FERRY_FROM": "start_node", "FERRY_TO": "end_node"})[
+            ["start_node", "end_node", "length", "time_weighted"]
         ]
     )
     return ferry_nodes, ferry_edges
@@ -93,20 +94,20 @@ def change_ferry_nodes(nodes_df, fnodes, fedges):
     fedges = (
         fedges.merge(
             fnodes[["node_id", "road_id"]],
-            left_on="startNode",
+            left_on="start_node",
             right_on="node_id",
         )
-        .rename(columns={"road_id": "startNode"})
+        .rename(columns={"road_id": "start_node"})
         .drop("node_id", axis=1)
     )
 
     fedges = (
         fedges.merge(
             fnodes[["node_id", "road_id"]],
-            left_on="endNode",
+            left_on="end_node",
             right_on="node_id",
         )
-        .rename(columns={"road_id": "endNode"})
+        .rename(columns={"road_id": "end_node"})
         .drop("node_id", axis=1)
     )
 
@@ -122,15 +123,20 @@ if __name__ == "__main__":
     edges = cudf.from_pandas(
         gpd.read_file(
             Config.HW_DATA,
-            layer="RoadLink",
+            layer="road_link",
             ignore_geometry=True,
+            pyarrow=True,
+            engine="pyorgio",
         ).pipe(process_edges)
     )
-    nodes = gpd.read_file(Config.HW_DATA, layer="RoadNode")
+    nodes = gpd.read_file(
+        Config.HW_DATA, layer="road_node", pyarrow=True, engine="pyorgio"
+    )
     nodes["easting"], nodes["northing"] = nodes.geometry.x, nodes.geometry.y
     nodes = cudf.from_pandas(
         nodes[["id", "easting", "northing"]].rename(columns={"id": "node_id"})
     )
+    nodes
     ferry = gpd.read_file(
         "./data/raw/os_highways/strtgi_essh_gb/ferry_line.shp",
     )[["FERRY_FROM", "FERRY_TO", "geometry"]]
@@ -143,8 +149,8 @@ if __name__ == "__main__":
         "northing": [10633, 30086],
     }
     extra_ferry_edges = {
-        "startNode": ["penz", "scilly"],
-        "endNode": ["scilly", "penz"],
+        "start_node": ["penz", "scilly"],
+        "end_node": ["scilly", "penz"],
         "length": [165, 165],
         "time_weighted": [165, 165],
     }
@@ -162,8 +168,8 @@ if __name__ == "__main__":
     node_ids = {v: k for k, v in node_ids.items()}
     nodes["node_id"] = nodes["node_id"].astype("str").map(node_ids).astype(int)
 
-    edges["source"] = edges["startNode"].map(node_ids).astype(int)
-    edges["target"] = edges["endNode"].map(node_ids).astype(int)
+    edges["source"] = edges["start_node"].map(node_ids).astype(int)
+    edges["target"] = edges["end_node"].map(node_ids).astype(int)
 
     nodes[Config.NODE_COLS].to_parquet(Config.OS_GRAPH / "nodes.parquet", index=False)
     logger.debug(f"Nodes saved to {Config.OS_GRAPH / 'nodes.parquet'}")
