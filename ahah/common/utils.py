@@ -163,17 +163,18 @@ def clean_postcodes(path: Path, current: bool) -> cudf.DataFrame:
     logger.info("Cleaning postcodes...")
 
     dtypes = {
-        "pcd": "str",
-        "lsoa11": "str",
-        "oseast1m": "int",
-        "osnrth1m": "int",
-        "doterm": "int",
-        "ctry": "str",
+        "PCD": "str",
+        "LSOA11": "str",
+        "OSEAST1M": "int",
+        "OSNRTH1M": "int",
+        "DOTERM": "int",
+        "CTRY": "str",
     }
     column_names = {
-        "pcd": "postcode",
-        "oseast1m": "easting",
-        "osnrth1m": "northing",
+        "PCD": "postcode",
+        "OSEAST1M": "easting",
+        "OSNRTH1M": "northing",
+        "LSOA11": "lsoa11",
     }
 
     postcodes = (
@@ -183,7 +184,7 @@ def clean_postcodes(path: Path, current: bool) -> cudf.DataFrame:
             dtype=dtypes,
         )
         .rename(columns=column_names)
-        .set_index("ctry")
+        .set_index("CTRY")
         .loc[["E92000001", "S92000003", "W92000004"]]
         .pipe(fix_postcodes)
         .dropna(subset=["northing", "easting"])
@@ -192,10 +193,10 @@ def clean_postcodes(path: Path, current: bool) -> cudf.DataFrame:
     )
 
     if not current:
-        return postcodes.drop("doterm", axis=1)
+        return postcodes.drop("DOTERM", axis=1)
 
     # 2 scottish LSOA have no current postcodes - so use nearby ones
-    pc_current = postcodes[postcodes["doterm"].isnull()]
+    pc_current = postcodes[postcodes["DOTERM"].isnull()]
     missing = postcodes.copy()
     missing.loc["G21 4QJ", "lsoa11"] = "S01010206"
     missing.loc[["G21 1NL", "G21 1RR"], "lsoa11"] = "S01010226"
@@ -203,7 +204,7 @@ def clean_postcodes(path: Path, current: bool) -> cudf.DataFrame:
     return (
         pc_current.append(postcodes[postcodes["lsoa11"] == "S01011827"])
         .append(missing.loc[["G21 4QJ", "G21 1NL", "G21 1RR"]])
-        .drop("doterm", axis=1)
+        .drop("DOTERM", axis=1)
     )
 
 
@@ -225,7 +226,7 @@ def clean_dentists(
         cudf.read_csv(scotland)
         .rename(
             columns={
-                "﻿DentalPracticeCode": "dentist",
+                "location_number": "dentist",
                 "Postcode": "postcode",
             }
         )[["dentist", "postcode"]]
@@ -285,8 +286,8 @@ def clean_pharmacies(
     )
 
     spharm = (
-        cudf.read_csv(scotland, usecols=[0, 6], sep="\t")
-        .rename(columns={"DispenserCode": "pharmacy", "Postcode": "postcode"})
+        cudf.read_csv(scotland, usecols=[0, 6])
+        .rename(columns={"DispCode": "pharmacy", "DispLocationPostcode": "postcode"})
         .astype(str)
         .pipe(fix_postcodes)
         .set_index("postcode")
@@ -321,8 +322,8 @@ def clean_hospitals(
     )
 
     shos = (
-        cudf.read_csv(scotland, usecols=["Location", "Postcode"])
-        .rename(columns={"Location": "hospital", "Postcode": "postcode"})
+        cudf.read_csv(scotland, usecols=["HospitalCode", "Postcode"])
+        .rename(columns={"HospitalCode": "hospital", "Postcode": "postcode"})
         .pipe(fix_postcodes)
         .set_index("postcode")
         .join(postcodes)
