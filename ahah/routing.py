@@ -49,7 +49,7 @@ class Routing:
         weights: str = "time_weighted",
         buffer: int = 25_000,
     ):
-        self.postcode_ids: np.ndarray = postcodes["node_id"].unique().to_array()
+        self.postcode_ids: np.ndarray = postcodes["node_id"].unique().to_numpy()
         self.pois = pois.drop_duplicates("node_id")
 
         self.edges = edges
@@ -71,7 +71,7 @@ class Routing:
 
         if self.log_file.exists():
             logger.warning("Resuming from a previous run.")
-            self.idx = cudf.read_csv(self.log_file)["idx"].max() - 1
+            self.idx = pd.read_csv(self.log_file)["idx"].max() - 1
             logger.warning(
                 f"Run resumed at {self.idx / len(self.pois) * 100:.2f}%"
                 f" ({self.idx} / {len(self.pois)})"
@@ -200,11 +200,12 @@ if __name__ == "__main__":
     logger.info("Starting Routing!")
     logger.debug("Reading graph and postcodes.")
 
-    edges = cudf.read_parquet(Config.OS_GRAPH / "edges.parquet")
-    nodes = cudf.read_parquet(Config.OS_GRAPH / "nodes.parquet")
-    postcodes = cudf.read_parquet(Config.PROCESSED_DATA / "postcodes.parquet")
+    edges = cudf.from_pandas(pd.read_parquet(Config.OS_GRAPH / "edges.parquet"))
+    nodes = cudf.from_pandas(pd.read_parquet(Config.OS_GRAPH / "nodes.parquet"))
+    postcodes = cudf.from_pandas(pd.read_parquet(Config.PROCESSED_DATA / "postcodes.parquet"))
 
     logger.debug("Finished reading nodes, edges and postcodes.")
+    Config.POI_LIST = ["gpp", "hospitals", "pharmacies"]
 
     logger.debug(f"Starting Routing for {Config.POI_LIST}.")
     for idx, poi in enumerate(Config.POI_LIST):
