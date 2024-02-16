@@ -3,21 +3,21 @@ stages:
     cmd: python -m ahah.get_nhs
     outs:
       # Hospitals
-      - data/raw/nhs/ets.csv
-      - data/raw/nhs/scotland/hospitals.csv
+      - data/raw/nhs/ets_nov2023.csv
+      - data/raw/nhs/scotland/hospitals_feb2024.csv
 
       # GP practices
-      - data/raw/nhs/epraccur.csv
-      - data/raw/nhs/scotland/gpp.csv
+      - data/raw/nhs/epraccur_nov2023.csv
+      - data/raw/nhs/scotland/gpp_jan2024.csv
 
       # Dentists
-      - data/raw/nhs/egdpprac.csv
-      - data/raw/nhs/scotland/dentists.csv
+      - data/raw/nhs/egdpprac_nov2023.csv
+      - data/raw/nhs/scotland/dentists_sept2023.csv
 
       # Pharmacies
-      - data/raw/nhs/edispensary.csv
-      - data/raw/nhs/scotland/pharmacies.csv
-      - data/raw/nhs/wales/pharmacy.xls
+      - data/raw/nhs/edispensary_nov2023.csv
+      - data/raw/nhs/scotland/pharmacies_nov2023.csv
+      - data/raw/nhs/wales/pharmacy_nov2023.xls
 
   os_highways:
     cmd: python -m ahah.os_highways
@@ -32,7 +32,7 @@ stages:
     cmd: python -m ahah.process_routing
     deps:
       - data/processed/osm/nodes.parquet
-      - ./data/raw/onspd/ONSPD_FEB_2022_UK.csv
+      - ./data/raw/onspd/ONSPD_FEB_2024.csv
 
       - data/raw/nhs/ets.csv
       - data/raw/nhs/scotland/hospitals.csv
@@ -46,26 +46,26 @@ stages:
       - data/raw/nhs/edispensary.csv
       - data/raw/nhs/scotland/pharmacies.csv
 
-      - data/raw/greenspace/access.shp
-      - data/raw/bluespace
+      # - data/raw/greenspace/access.shp
+      # - data/raw/bluespace
     outs:
       - data/processed/postcodes.parquet
       - data/processed/hospitals.parquet
       - data/processed/gpp.parquet
       - data/processed/dentists.parquet
       - data/processed/pharmacies.parquet
-      - data/processed/greenspace.parquet
-      - data/processed/bluespace.parquet
+      # - data/processed/greenspace.parquet
+      # - data/processed/bluespace.parquet
 
-  process_air:
-    cmd: python -m ahah.process_air
-    deps:
-      - data/raw/lsoa/england_lsoa_2011.shp
-      - data/raw/air/mapno22019.csv
-      - data/raw/air/mapso22019.csv
-      - data/raw/air/mappm102019g.csv
-    outs:
-      - data/out/lsoa_air.csv
+  # process_air:
+  #   cmd: python -m ahah.process_air
+  #   deps:
+  #     - data/raw/lsoa/england_lsoa_2011.shp
+  #     - data/raw/air/mapno22019.csv
+  #     - data/raw/air/mapso22019.csv
+  #     - data/raw/air/mappm102019g.csv
+  #   outs:
+  #     - data/out/lsoa_air.csv
 
   routing:
     cmd: python -m ahah.routing
