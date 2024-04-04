@@ -1,0 +1,125 @@
+ 16-02-2024 15:03:18:785 [pid=757908 tid=757908] ERROR  0:140 unable to load,  liburcu-bp.so.6 
+
+ 16-02-2024 15:03:18:785 [pid=757908 tid=757908] ERROR  0:140 unable to load,  liburcu-bp.so.1 
+
+ 16-02-2024 15:03:18:786 [pid=757908 tid=757908] WARN   0:172 failed to open /proc/driver/nvidia-fs/devcount  error: No such file or directory
+ 16-02-2024 15:03:18:786 [pid=757908 tid=757908] NOTICE  cufio-drv:720 running in compatible mode
+ 16-02-2024 15:03:19:820 [pid=757908 tid=757908] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:40
+ 16-02-2024 15:03:19:820 [pid=757908 tid=757908] ERROR  cufio-fs:733 error getting volume attributes error for device: dev_no: 0:40
+ 16-02-2024 15:03:19:820 [pid=757908 tid=757908] ERROR  cufio-obj:174 unable to get volume attributes for fd 35
+ 16-02-2024 15:03:19:820 [pid=757908 tid=757908] ERROR  cufio:1565 cuFileHandleRegister error, failed to allocate file object
+ 16-02-2024 15:03:19:820 [pid=757908 tid=757908] ERROR  cufio:1593 cuFileHandleRegister error: internal error
+ 16-02-2024 15:03:44:941 [pid=757908 tid=757908] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:40
+ 16-02-2024 15:03:44:941 [pid=757908 tid=757908] ERROR  cufio-fs:733 error getting volume attributes error for device: dev_no: 0:40
+ 16-02-2024 15:03:44:941 [pid=757908 tid=757908] ERROR  cufio-obj:174 unable to get volume attributes for fd 38
+ 16-02-2024 15:03:44:941 [pid=757908 tid=757908] ERROR  cufio:1565 cuFileHandleRegister error, failed to allocate file object
+ 16-02-2024 15:03:44:941 [pid=757908 tid=757908] ERROR  cufio:1593 cuFileHandleRegister error: internal error
+ 16-02-2024 15:03:50:863 [pid=757908 tid=757908] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:40
+ 16-02-2024 15:03:50:863 [pid=757908 tid=757908] ERROR  cufio-fs:733 error getting volume attributes error for device: dev_no: 0:40
+ 16-02-2024 15:03:50:863 [pid=757908 tid=757908] ERROR  cufio-obj:174 unable to get volume attributes for fd 40
+ 16-02-2024 15:03:50:863 [pid=757908 tid=757908] ERROR  cufio:1565 cuFileHandleRegister error, failed to allocate file object
+ 16-02-2024 15:03:50:863 [pid=757908 tid=757908] ERROR  cufio:1593 cuFileHandleRegister error: internal error
+ 16-02-2024 15:04:26:325 [pid=758283 tid=758283] ERROR  0:140 unable to load,  liburcu-bp.so.6 
+
+ 16-02-2024 15:04:26:325 [pid=758283 tid=758283] ERROR  0:140 unable to load,  liburcu-bp.so.1 
+
+ 16-02-2024 15:04:26:325 [pid=758283 tid=758283] WARN   0:172 failed to open /proc/driver/nvidia-fs/devcount  error: No such file or directory
+ 16-02-2024 15:04:26:325 [pid=758283 tid=758283] NOTICE  cufio-drv:720 running in compatible mode
+ 16-02-2024 15:04:27:129 [pid=758283 tid=758283] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:40
+ 16-02-2024 15:04:27:129 [pid=758283 tid=758283] ERROR  cufio-fs:733 error getting volume attributes error for device: dev_no: 0:40
+ 16-02-2024 15:04:27:129 [pid=758283 tid=758283] ERROR  cufio-obj:174 unable to get volume attributes for fd 35
+ 16-02-2024 15:04:27:129 [pid=758283 tid=758283] ERROR  cufio:1565 cuFileHandleRegister error, failed to allocate file object
+ 16-02-2024 15:04:27:129 [pid=758283 tid=758283] ERROR  cufio:1593 cuFileHandleRegister error: internal error
+ 16-02-2024 17:01:31:268 [pid=9067 tid=9067] ERROR  0:140 unable to load,  liburcu-bp.so.6 
+
+ 16-02-2024 17:01:31:268 [pid=9067 tid=9067] ERROR  0:140 unable to load,  liburcu-bp.so.1 
+
+ 16-02-2024 17:01:31:268 [pid=9067 tid=9067] WARN   0:172 failed to open /proc/driver/nvidia-fs/devcount  error: No such file or directory
+ 16-02-2024 17:01:31:268 [pid=9067 tid=9067] NOTICE  cufio-drv:720 running in compatible mode
+ 16-02-2024 17:01:32:251 [pid=9067 tid=9067] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:40
+ 16-02-2024 17:01:32:251 [pid=9067 tid=9067] ERROR  cufio-fs:733 error getting volume attributes error for device: dev_no: 0:40
+ 16-02-2024 17:01:32:251 [pid=9067 tid=9067] ERROR  cufio-obj:174 unable to get volume attributes for fd 53
+ 16-02-2024 17:01:32:251 [pid=9067 tid=9067] ERROR  cufio:1565 cuFileHandleRegister error, failed to allocate file object
+ 16-02-2024 17:01:32:251 [pid=9067 tid=9067] ERROR  cufio:1593 cuFileHandleRegister error: internal error
+ 16-02-2024 17:03:56:734 [pid=9258 tid=9258] ERROR  0:140 unable to load,  liburcu-bp.so.6 
+
+ 16-02-2024 17:03:56:734 [pid=9258 tid=9258] ERROR  0:140 unable to load,  liburcu-bp.so.1 
+
+ 16-02-2024 17:03:56:734 [pid=9258 tid=9258] WARN   0:172 failed to open /proc/driver/nvidia-fs/devcount  error: No such file or directory
+ 16-02-2024 17:03:56:734 [pid=9258 tid=9258] NOTICE  cufio-drv:720 running in compatible mode
+ 16-02-2024 17:03:57:709 [pid=9258 tid=9258] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:40
+ 16-02-2024 17:03:57:709 [pid=9258 tid=9258] ERROR  cufio-fs:733 error getting volume attributes error for device: dev_no: 0:40
+ 16-02-2024 17:03:57:709 [pid=9258 tid=9258] ERROR  cufio-obj:174 unable to get volume attributes for fd 55
+ 16-02-2024 17:03:57:709 [pid=9258 tid=9258] ERROR  cufio:1565 cuFileHandleRegister error, failed to allocate file object
+ 16-02-2024 17:03:57:709 [pid=9258 tid=9258] ERROR  cufio:1593 cuFileHandleRegister error: internal error
+ 16-02-2024 17:04:40:637 [pid=9258 tid=9258] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:40
+ 16-02-2024 17:04:40:637 [pid=9258 tid=9258] ERROR  cufio-fs:733 error getting volume attributes error for device: dev_no: 0:40
+ 16-02-2024 17:04:40:637 [pid=9258 tid=9258] ERROR  cufio-obj:174 unable to get volume attributes for fd 57
+ 16-02-2024 17:04:40:637 [pid=9258 tid=9258] ERROR  cufio:1565 cuFileHandleRegister error, failed to allocate file object
+ 16-02-2024 17:04:40:637 [pid=9258 tid=9258] ERROR  cufio:1593 cuFileHandleRegister error: internal error
+ 16-02-2024 17:13:41:788 [pid=11580 tid=11580] ERROR  0:140 unable to load,  liburcu-bp.so.6 
+
+ 16-02-2024 17:13:41:788 [pid=11580 tid=11580] ERROR  0:140 unable to load,  liburcu-bp.so.1 
+
+ 16-02-2024 17:13:41:789 [pid=11580 tid=11580] WARN   0:172 failed to open /proc/driver/nvidia-fs/devcount  error: No such file or directory
+ 16-02-2024 17:13:41:789 [pid=11580 tid=11580] NOTICE  cufio-drv:720 running in compatible mode
+ 16-02-2024 17:13:42:778 [pid=11580 tid=11580] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:40
+ 16-02-2024 17:13:42:778 [pid=11580 tid=11580] ERROR  cufio-fs:733 error getting volume attributes error for device: dev_no: 0:40
+ 16-02-2024 17:13:42:778 [pid=11580 tid=11580] ERROR  cufio-obj:174 unable to get volume attributes for fd 53
+ 16-02-2024 17:13:42:778 [pid=11580 tid=11580] ERROR  cufio:1565 cuFileHandleRegister error, failed to allocate file object
+ 16-02-2024 17:13:42:778 [pid=11580 tid=11580] ERROR  cufio:1593 cuFileHandleRegister error: internal error
+ 16-02-2024 17:48:28:718 [pid=15812 tid=15812] ERROR  0:140 unable to load,  liburcu-bp.so.6 
+
+ 16-02-2024 17:48:28:718 [pid=15812 tid=15812] ERROR  0:140 unable to load,  liburcu-bp.so.1 
+
+ 16-02-2024 17:48:28:718 [pid=15812 tid=15812] WARN   0:172 failed to open /proc/driver/nvidia-fs/devcount  error: No such file or directory
+ 16-02-2024 17:48:28:718 [pid=15812 tid=15812] NOTICE  cufio-drv:720 running in compatible mode
+ 16-02-2024 17:48:29:724 [pid=15812 tid=15812] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:40
+ 16-02-2024 17:48:29:724 [pid=15812 tid=15812] ERROR  cufio-fs:733 error getting volume attributes error for device: dev_no: 0:40
+ 16-02-2024 17:48:29:724 [pid=15812 tid=15812] ERROR  cufio-obj:174 unable to get volume attributes for fd 53
+ 16-02-2024 17:48:29:724 [pid=15812 tid=15812] ERROR  cufio:1565 cuFileHandleRegister error, failed to allocate file object
+ 16-02-2024 17:48:29:724 [pid=15812 tid=15812] ERROR  cufio:1593 cuFileHandleRegister error: internal error
+ 16-02-2024 17:49:58:115 [pid=16004 tid=16004] ERROR  0:140 unable to load,  liburcu-bp.so.6 
+
+ 16-02-2024 17:49:58:115 [pid=16004 tid=16004] ERROR  0:140 unable to load,  liburcu-bp.so.1 
+
+ 16-02-2024 17:49:58:115 [pid=16004 tid=16004] WARN   0:172 failed to open /proc/driver/nvidia-fs/devcount  error: No such file or directory
+ 16-02-2024 17:49:58:115 [pid=16004 tid=16004] NOTICE  cufio-drv:720 running in compatible mode
+ 16-02-2024 17:49:59:112 [pid=16004 tid=16004] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:40
+ 16-02-2024 17:49:59:112 [pid=16004 tid=16004] ERROR  cufio-fs:733 error getting volume attributes error for device: dev_no: 0:40
+ 16-02-2024 17:49:59:112 [pid=16004 tid=16004] ERROR  cufio-obj:174 unable to get volume attributes for fd 53
+ 16-02-2024 17:49:59:112 [pid=16004 tid=16004] ERROR  cufio:1565 cuFileHandleRegister error, failed to allocate file object
+ 16-02-2024 17:49:59:112 [pid=16004 tid=16004] ERROR  cufio:1593 cuFileHandleRegister error: internal error
+ 18-02-2024 20:55:08:65 [pid=9751 tid=9751] ERROR  0:140 unable to load,  liburcu-bp.so.6 
+
+ 18-02-2024 20:55:08:65 [pid=9751 tid=9751] ERROR  0:140 unable to load,  liburcu-bp.so.1 
+
+ 18-02-2024 20:55:08:65 [pid=9751 tid=9751] WARN   0:172 failed to open /proc/driver/nvidia-fs/devcount  error: No such file or directory
+ 18-02-2024 20:55:08:65 [pid=9751 tid=9751] NOTICE  cufio-drv:720 running in compatible mode
+ 18-02-2024 20:55:08:402 [pid=9751 tid=9751] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:40
+ 18-02-2024 20:55:08:402 [pid=9751 tid=9751] ERROR  cufio-fs:733 error getting volume attributes error for device: dev_no: 0:40
+ 18-02-2024 20:55:08:402 [pid=9751 tid=9751] ERROR  cufio-obj:174 unable to get volume attributes for fd 53
+ 18-02-2024 20:55:08:402 [pid=9751 tid=9751] ERROR  cufio:1565 cuFileHandleRegister error, failed to allocate file object
+ 18-02-2024 20:55:08:402 [pid=9751 tid=9751] ERROR  cufio:1593 cuFileHandleRegister error: internal error
+ 29-02-2024 12:44:18:645 [pid=1940504 tid=1940504] ERROR  0:140 unable to load,  liburcu-bp.so.6 
+
+ 29-02-2024 12:44:18:650 [pid=1940504 tid=1940504] ERROR  0:140 unable to load,  liburcu-bp.so.1 
+
+ 29-02-2024 12:44:18:650 [pid=1940504 tid=1940504] WARN   0:172 failed to open /proc/driver/nvidia-fs/devcount  error: No such file or directory
+ 29-02-2024 12:44:18:650 [pid=1940504 tid=1940504] NOTICE  cufio-drv:720 running in compatible mode
+ 29-02-2024 12:44:18:970 [pid=1940504 tid=1940504] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:40
+ 29-02-2024 12:44:18:970 [pid=1940504 tid=1940504] ERROR  cufio-fs:733 error getting volume attributes error for device: dev_no: 0:40
+ 29-02-2024 12:44:18:970 [pid=1940504 tid=1940504] ERROR  cufio-obj:174 unable to get volume attributes for fd 54
+ 29-02-2024 12:44:18:970 [pid=1940504 tid=1940504] ERROR  cufio:1565 cuFileHandleRegister error, failed to allocate file object
+ 29-02-2024 12:44:18:970 [pid=1940504 tid=1940504] ERROR  cufio:1593 cuFileHandleRegister error: internal error
+ 01-03-2024 12:26:52:959 [pid=2314861 tid=2314861] ERROR  0:140 unable to load,  liburcu-bp.so.6 
+
+ 01-03-2024 12:26:52:960 [pid=2314861 tid=2314861] ERROR  0:140 unable to load,  liburcu-bp.so.1 
+
+ 01-03-2024 12:26:52:960 [pid=2314861 tid=2314861] WARN   0:172 failed to open /proc/driver/nvidia-fs/devcount  error: No such file or directory
+ 01-03-2024 12:26:52:960 [pid=2314861 tid=2314861] NOTICE  cufio-drv:720 running in compatible mode
+ 01-03-2024 12:26:53:297 [pid=2314861 tid=2314861] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:40
+ 01-03-2024 12:26:53:297 [pid=2314861 tid=2314861] ERROR  cufio-fs:733 error getting volume attributes error for device: dev_no: 0:40
+ 01-03-2024 12:26:53:297 [pid=2314861 tid=2314861] ERROR  cufio-obj:174 unable to get volume attributes for fd 26
+ 01-03-2024 12:26:53:297 [pid=2314861 tid=2314861] ERROR  cufio:1565 cuFileHandleRegister error, failed to allocate file object
+ 01-03-2024 12:26:53:297 [pid=2314861 tid=2314861] ERROR  cufio:1593 cuFileHandleRegister error: internal error
