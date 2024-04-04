@@ -1,17 +1,22 @@
 from __future__ import annotations
 
 import time
-from collections import namedtuple
+import warnings
+from typing import NamedTuple
 
 import cudf
 import cugraph
+import cupy
 import cuspatial
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 from rich.progress import track
 
 from ahah.common.logger import logger
 from ahah.common.utils import Config
+
+cupy.cuda.Device(1).use()
 
 
 class Routing:
@@ -47,37 +52,30 @@ class Routing:
         postcodes: cudf.DataFrame,
         pois: pd.DataFrame,
         weights: str = "time_weighted",
-        buffer: int = 25_000,
+        buffer: int = 5_000,
     ):
         self.postcode_ids: np.ndarray = postcodes["node_id"].unique().to_numpy()
         self.pois = pois.drop_duplicates("node_id")
 
         self.edges = edges
         self.nodes = nodes
+        self.nodes_nogeo = cudf.DataFrame(nodes.drop("geometry", axis=1))
         self.name = name
         self.weights = weights
         self.buffer = buffer
 
-        if not self.buffer:
-            self.graph = cugraph.Graph()
-            self.graph.from_cudf_edgelist(
-                self.edges,
-                source="source",
-                destination="target",
-                edge_attr=self.weights,
-            )
+        self.graph = cugraph.Graph()
+        self.graph.from_cudf_edgelist(
+            self.edges,
+            source="source",
+            destination="target",
+            edge_attr=self.weights,
+            # weights=self.weights,
+            renumber=False,
+        )
 
-        self.log_file = Config.OUT_DATA / "logs" / f"{self.name}_intermediate.csv"
-
-        if self.log_file.exists():
-            logger.warning("Resuming from a previous run.")
-            self.idx = pd.read_csv(self.log_file)["idx"].max() - 1
-            logger.warning(
-                f"Run resumed at {self.idx / len(self.pois) * 100:.2f}%"
-                f" ({self.idx} / {len(self.pois)})"
-            )
-        else:
-            self.idx = 0
+        self.idx = 0
+        self.distances = cudf.DataFrame()
 
     def fit(self) -> None:
         """
@@ -88,9 +86,9 @@ class Routing:
         """
         t1 = time.time()
         for poi in track(
-            self.pois.iloc[self.idx :].itertuples(),
+            self.pois.itertuples(),
             description=f"Processing {self.name}...",
-            total=len(self.pois) - self.idx,
+            total=len(self.pois),
         ):
             self.get_shortest_dists(poi)
         t2 = time.time()
@@ -99,7 +97,7 @@ class Routing:
             f"Routing complete for {self.name} in {tdiff / 60:.2f} minutes,"
             " finding minimum distances."
         )
-        self.log_file.unlink()
+        # self.log_file.unlink()
 
     def create_sub_graph(self, poi) -> cugraph.Graph:
         """
@@ -123,32 +121,22 @@ class Routing:
         buffer = max(poi.buffer, self.buffer)
         while True:
             node_subset = cuspatial.points_in_spatial_window(
+                points=nodes["geometry"],
                 min_x=poi.easting - buffer,
                 max_x=poi.easting + buffer,
                 min_y=poi.northing - buffer,
                 max_y=poi.northing + buffer,
-                xs=self.nodes["easting"],
-                ys=self.nodes["northing"],
             )
-            node_subset = node_subset.merge(
-                self.nodes, left_on=["x", "y"], right_on=["easting", "northing"]
-            ).drop(["x", "y"], axis=1)
-            sub_source = self.edges.merge(
-                node_subset, left_on="source", right_on="node_id"
-            )
-            sub_target = self.edges.merge(
-                node_subset, left_on="target", right_on="node_id"
-            )
-            sub_edges = sub_source.append(sub_target).drop_duplicates(
-                ["source", "target"]
-            )
-            sub_graph = cugraph.Graph()
-            sub_graph.from_cudf_edgelist(
-                sub_edges,
-                source="source",
-                destination="target",
-                edge_attr=self.weights,
-            )
+            node_subset = cudf.DataFrame(
+                {"easting": node_subset.points.x, "northing": node_subset.points.y}
+            ).merge(self.nodes_nogeo, on=["easting", "northing"])
+            with warnings.catch_warnings():
+                warnings.simplefilter(action="ignore", category=FutureWarning)
+                sub_graph = cugraph.subgraph(self.graph, node_subset["node_id"])
+
+            if sub_graph is None:
+                continue
+
             pc_nodes = cudf.Series(poi.pc_node).isin(sub_graph.nodes()).sum()
             poi_node = sub_graph.nodes().isin([poi.node_id]).sum()
 
@@ -157,9 +145,9 @@ class Routing:
             if poi_node & (pc_nodes == len(poi.pc_node)):
                 return sub_graph
             buffer = buffer * 2
-            logger.debug(f"{poi.Index=}: increasing {buffer=}")
+            # logger.debug(f"{poi.Index=}: increasing {buffer=}")
 
-    def get_shortest_dists(self, poi: namedtuple) -> None:
+    def get_shortest_dists(self, poi: NamedTuple) -> None:
         """
         Use `cugraph.sssp` to calculate shortest paths from POI to postcodes
 
@@ -173,18 +161,19 @@ class Routing:
             Single POI created from `df.itertuples()`
         """
         if self.buffer:
-            self.graph = self.create_sub_graph(poi=poi)
+            sub_graph = self.create_sub_graph(poi=poi)
+        else:
+            sub_graph = self.graph
 
         shortest_paths: cudf.DataFrame = cugraph.filter_unreachable(
-            cugraph.sssp(self.graph, source=poi.node_id)
+            cugraph.sssp(sub_graph, source=poi.node_id)
         )
         pc_dist = shortest_paths[shortest_paths.vertex.isin(self.postcode_ids)]
 
-        self.idx += 1
         pc_dist["idx"] = self.idx
 
-        if self.log_file.exists():
-            self.distances = cudf.read_csv(self.log_file).append(pc_dist)
+        if idx != 0:
+            self.distances = cudf.concat([self.distances, pc_dist])
         else:
             self.distances = pc_dist[["vertex", "distance", "idx"]]
 
@@ -193,7 +182,12 @@ class Routing:
             .drop_duplicates("vertex")
             .reset_index()[["vertex", "distance", "idx"]]
         )
-        self.distances.to_csv(self.log_file, index=False)
+        self.idx += 1
+
+        # logger.debug(
+        #     f"Current disances for {self.name} {len(self.distances)} "
+        #     f"out of {len(self.postcode_ids)} postcode nodes."
+        # )
 
 
 if __name__ == "__main__":
@@ -201,15 +195,26 @@ if __name__ == "__main__":
     logger.debug("Reading graph and postcodes.")
 
     edges = cudf.from_pandas(pd.read_parquet(Config.OS_GRAPH / "edges.parquet"))
-    nodes = cudf.from_pandas(pd.read_parquet(Config.OS_GRAPH / "nodes.parquet"))
-    postcodes = cudf.from_pandas(pd.read_parquet(Config.PROCESSED_DATA / "postcodes.parquet"))
+    edges["time_weighted"] = edges["time_weighted"].astype("float32")
+
+    nodes = pd.read_parquet(Config.OS_GRAPH / "nodes.parquet")
+    nodes = cuspatial.from_geopandas(
+        gpd.GeoDataFrame(
+            nodes, geometry=gpd.points_from_xy(nodes["easting"], nodes["northing"])
+        )
+    )
+
+    postcodes = cudf.from_pandas(
+        pd.read_parquet(Config.PROCESSED_DATA / "postcodes.parquet")
+    )
 
     logger.debug("Finished reading nodes, edges and postcodes.")
-    Config.POI_LIST = ["gpp", "hospitals", "pharmacies"]
 
     logger.debug(f"Starting Routing for {Config.POI_LIST}.")
     for idx, poi in enumerate(Config.POI_LIST):
-        df = pd.read_parquet(Config.PROCESSED_DATA / f"{poi}.parquet")
+        df = pd.read_parquet(Config.PROCESSED_DATA / f"{poi}.parquet").reset_index(
+            drop=True
+        )
         logger.debug(f"Starting routing for {poi} ({idx+1}/{len(Config.POI_LIST)}).")
         OUT_FILE = Config.OUT_DATA / f"distances_{poi}.csv"
 
@@ -231,6 +236,8 @@ if __name__ == "__main__":
             )
 
             logger.debug(f"Saving distances for {poi} to {OUT_FILE}.")
-            distances[["postcode", "distance"]].to_csv(OUT_FILE, index=False)
+            distances.to_pandas()[["postcode", "distance"]].to_csv(
+                OUT_FILE, index=False
+            )
         else:
             logger.warning(f"{OUT_FILE} exists! Skipping {poi}.")

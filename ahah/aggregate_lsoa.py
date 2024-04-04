@@ -33,9 +33,11 @@ def read_dists(dist_files: Generator, pcs: cudf.DataFrame, ndvi) -> pd.DataFrame
 if __name__ == "__main__":
     dist_files = list(Path(Config.OUT_DATA).glob("distances_*.csv"))
 
-    pcs = cudf.read_parquet(Config.PROCESSED_DATA / "postcodes.parquet").set_index(
+    pcs = pd.read_parquet(Config.PROCESSED_DATA / "postcodes.parquet").set_index(
         "postcode"
     )
+    gpp = pd.read_csv(Path(Config.OUT_DATA / "distances_gpp.csv"))
+    gpp = pcs.merge(gpp, on="postcode")
 
     gspassive = (
         cudf.read_csv(Config.RAW_DATA / "ndvi" / "sentinel_postcode_ndvi_20210419.csv")

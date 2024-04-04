@@ -2,9 +2,15 @@ import cudf
 from cuml.neighbors.nearest_neighbors import NearestNeighbors
 
 from ahah.common.logger import logger
-from ahah.common.utils import (Config, clean_bluespace, clean_dentists,
-                               clean_gpp, clean_hospitals, clean_pharmacies,
-                               clean_postcodes)
+from ahah.common.utils import (
+    Config,
+    clean_bluespace,
+    clean_dentists,
+    clean_gpp,
+    clean_hospitals,
+    clean_pharmacies,
+    clean_postcodes,
+)
 
 
 def nearest_nodes(df: cudf.DataFrame, nodes: cudf.DataFrame) -> cudf.DataFrame:
@@ -127,12 +133,12 @@ if __name__ == "__main__":
         scotland=Config.RAW_DATA / "nhs" / "scotland" / "hospitals_feb2024.csv",
         postcodes=all_pcs,
     )
-    # dentists: cudf.DataFrame = clean_dentists(
-    #     england=Config.RAW_DATA / "nhs" / "egdpprac_nov2023.csv",
-    #     scotland=Config.RAW_DATA / "nhs" / "scotland" / "dentists_sept2023.csv",
-    #     postcodes=all_pcs,
-    # )
-    # df = cudf.read_csv(Config.RAW_DATA / "nhs" / "scotland" / "dentists_sept2023.csv")
+    dentists: cudf.DataFrame = clean_dentists(
+        england=Config.RAW_DATA / "nhs" / "egdpprac_nov2023.csv",
+        scotland=Config.RAW_DATA / "nhs" / "scotland" / "dentists_dec2023.csv",
+        postcodes=all_pcs,
+    )
+    df = cudf.read_csv(Config.RAW_DATA / "nhs" / "scotland" / "dentists_dec2023.csv")
 
     pharmacies: cudf.DataFrame = clean_pharmacies(
         england=Config.RAW_DATA / "nhs" / "edispensary_nov2023.csv",
@@ -148,10 +154,10 @@ if __name__ == "__main__":
     pcs.to_parquet(Config.PROCESSED_DATA / "postcodes.parquet")
 
     poi_list = {
-        "gpp": gpp,
-        "hospitals": hospitals,
-        # "dentists": dentists,
-        "pharmacies": pharmacies,
+        # "gpp": gpp,
+        # "hospitals": hospitals,
+        "dentists": dentists,
+        # "pharmacies": pharmacies,
         # "greenspace": greenspace,
         # "bluespace": bluespace,
     }

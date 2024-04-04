@@ -229,8 +229,9 @@ def clean_dentists(
                 "location_number": "dentist",
                 "Postcode": "postcode",
             }
-        )[["dentist", "postcode"]]
+        )[["dentist", "pc7"]]
         .astype(str)
+        .rename(columns={"pc7": "postcode"})
         .pipe(fix_postcodes)
         .set_index("postcode")
         .join(postcodes)
