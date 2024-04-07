@@ -16,8 +16,6 @@ from rich.progress import track
 from ahah.common.logger import logger
 from ahah.common.utils import Config
 
-cupy.cuda.Device(1).use()
-
 
 class Routing:
     """
