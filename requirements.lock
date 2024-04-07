@@ -8,3 +8,266 @@
 #   with-sources: false
 
 -e file:.
+aiohttp==3.9.3
+    # via fsspec
+aiosignal==1.3.1
+    # via aiohttp
+asttokens==2.4.1
+    # via stack-data
+async-timeout==4.0.3
+    # via aiohttp
+attrs==23.2.0
+    # via aiohttp
+    # via fiona
+cachetools==5.3.3
+    # via cudf-cu12
+certifi==2024.2.2
+    # via fiona
+    # via pyproj
+click==8.1.7
+    # via click-plugins
+    # via cligj
+    # via dask
+    # via dask-cuda
+    # via distributed
+    # via fiona
+click-plugins==1.1.1
+    # via fiona
+cligj==0.7.2
+    # via fiona
+cloudpickle==3.0.0
+    # via dask
+    # via distributed
+cuda-python==12.4.0
+    # via cudf-cu12
+    # via pylibraft-cu12
+    # via rmm-cu12
+cudf-cu12==24.2.2
+    # via cugraph-cu12
+    # via cuml-cu12
+    # via cuspatial-cu12
+    # via dask-cudf-cu12
+cugraph-cu12==24.2.0
+    # via ahah
+cuml-cu12==24.2.0
+    # via ahah
+cuproj-cu12==24.2.0
+    # via ahah
+cupy-cuda12x==13.0.0
+    # via cudf-cu12
+    # via cugraph-cu12
+    # via cuml-cu12
+    # via cuproj-cu12
+    # via dask-cudf-cu12
+cuspatial-cu12==24.2.0
+    # via ahah
+dask==2024.1.1
+    # via distributed
+    # via rapids-dask-dependency
+dask-cuda==24.2.0
+    # via cugraph-cu12
+    # via cuml-cu12
+    # via raft-dask-cu12
+dask-cudf-cu12==24.2.2
+    # via cugraph-cu12
+    # via cuml-cu12
+decorator==5.1.1
+    # via ipdb
+    # via ipython
+distributed==2024.1.1
+    # via rapids-dask-dependency
+exceptiongroup==1.2.0
+    # via ipython
+executing==2.0.1
+    # via stack-data
+fastrlock==0.8.2
+    # via cupy-cuda12x
+fiona==1.9.6
+    # via geopandas
+frozenlist==1.4.1
+    # via aiohttp
+    # via aiosignal
+fsspec==2024.3.1
+    # via cudf-cu12
+    # via cugraph-cu12
+    # via dask
+    # via dask-cudf-cu12
+geopandas==0.14.3
+    # via cuspatial-cu12
+idna==3.6
+    # via yarl
+importlib-metadata==7.1.0
+    # via dask
+ipdb==0.13.13
+    # via ahah
+ipython==8.23.0
+    # via ipdb
+jedi==0.19.1
+    # via ipython
+jinja2==3.1.3
+    # via distributed
+joblib==1.3.2
+    # via cuml-cu12
+    # via raft-dask-cu12
+llvmlite==0.42.0
+    # via numba
+locket==1.0.0
+    # via distributed
+    # via partd
+markdown-it-py==3.0.0
+    # via rich
+markupsafe==2.1.5
+    # via jinja2
+matplotlib-inline==0.1.6
+    # via ipython
+mdurl==0.1.2
+    # via markdown-it-py
+msgpack==1.0.8
+    # via distributed
+multidict==6.0.5
+    # via aiohttp
+    # via yarl
+numba==0.59.1
+    # via cudf-cu12
+    # via cugraph-cu12
+    # via cuml-cu12
+    # via dask-cuda
+    # via raft-dask-cu12
+    # via rmm-cu12
+numpy==1.24.4
+    # via cudf-cu12
+    # via cugraph-cu12
+    # via cupy-cuda12x
+    # via dask-cuda
+    # via dask-cudf-cu12
+    # via numba
+    # via pandas
+    # via pyarrow
+    # via pylibraft-cu12
+    # via raft-dask-cu12
+    # via rmm-cu12
+    # via scipy
+    # via shapely
+    # via treelite
+    # via ucx-py-cu12
+nvtx==0.2.10
+    # via cudf-cu12
+packaging==24.0
+    # via cudf-cu12
+    # via dask
+    # via distributed
+    # via geopandas
+    # via treelite
+pandas==1.5.3
+    # via cudf-cu12
+    # via dask-cuda
+    # via dask-cudf-cu12
+    # via geopandas
+parso==0.8.3
+    # via jedi
+partd==1.4.1
+    # via dask
+pexpect==4.9.0
+    # via ipython
+prompt-toolkit==3.0.43
+    # via ipython
+protobuf==4.25.3
+    # via cudf-cu12
+psutil==5.9.8
+    # via distributed
+ptyprocess==0.7.0
+    # via pexpect
+pure-eval==0.2.2
+    # via stack-data
+pyarrow==14.0.2
+    # via cudf-cu12
+pygments==2.17.2
+    # via ipython
+    # via rich
+pylibcugraph-cu12==24.2.0
+    # via cugraph-cu12
+pylibraft-cu12==24.2.0
+    # via cuml-cu12
+    # via pylibcugraph-cu12
+    # via raft-dask-cu12
+pynvjitlink-cu12==0.1.14
+    # via cudf-cu12
+pynvml==11.4.1
+    # via dask-cuda
+    # via ucx-py-cu12
+pyproj==3.6.1
+    # via geopandas
+python-dateutil==2.9.0.post0
+    # via pandas
+pytz==2024.1
+    # via pandas
+pyyaml==6.0.1
+    # via dask
+    # via distributed
+raft-dask-cu12==24.2.0
+    # via cugraph-cu12
+    # via cuml-cu12
+rapids-dask-dependency==24.2.0
+    # via cugraph-cu12
+    # via cuml-cu12
+    # via dask-cuda
+    # via dask-cudf-cu12
+    # via raft-dask-cu12
+rich==13.7.1
+    # via ahah
+    # via cudf-cu12
+rmm-cu12==24.2.0
+    # via cudf-cu12
+    # via cugraph-cu12
+    # via cuml-cu12
+    # via cuproj-cu12
+    # via cuspatial-cu12
+    # via pylibcugraph-cu12
+    # via pylibraft-cu12
+scipy==1.13.0
+    # via cuml-cu12
+    # via treelite
+shapely==2.0.3
+    # via geopandas
+six==1.16.0
+    # via asttokens
+    # via fiona
+    # via python-dateutil
+sortedcontainers==2.4.0
+    # via distributed
+stack-data==0.6.3
+    # via ipython
+tblib==3.0.0
+    # via distributed
+tomli==2.0.1
+    # via ipdb
+toolz==0.12.1
+    # via dask
+    # via distributed
+    # via partd
+tornado==6.4
+    # via distributed
+tqdm==4.66.2
+    # via ahah
+traitlets==5.14.2
+    # via ipython
+    # via matplotlib-inline
+treelite==4.0.0
+    # via cuml-cu12
+typing-extensions==4.10.0
+    # via cudf-cu12
+    # via ipython
+ucx-py-cu12==0.36.0
+    # via cugraph-cu12
+    # via raft-dask-cu12
+urllib3==2.2.1
+    # via distributed
+wcwidth==0.2.13
+    # via prompt-toolkit
+yarl==1.9.4
+    # via aiohttp
+zict==3.0.0
+    # via dask-cuda
+    # via distributed
+zipp==3.18.1
+    # via importlib-metadata

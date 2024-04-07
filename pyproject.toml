@@ -6,7 +6,13 @@ authors = [
     { name = "cjber", email = "cjberragan@gmail.com" }
 ]
 dependencies = [
-    "cudf-cu12>=24.6.0a54",
+    "cuml-cu12>=24.2.0",
+    "cugraph-cu12>=24.2.0",
+    "cuspatial-cu12>=24.2.0",
+    "cuproj-cu12>=24.2.0",
+    "rich>=13.7.1",
+    "tqdm>=4.66.2",
+    "ipdb>=0.13.13",
 ]
 readme = "README.md"
 requires-python = ">= 3.10"
@@ -17,7 +23,9 @@ build-backend = "hatchling.build"
 
 [tool.rye]
 managed = true
-dev-dependencies = []
+dev-dependencies = [
+    "ipython>=8.23.0",
+]
 
 [tool.hatch.metadata]
 allow-direct-references = true
