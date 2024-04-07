@@ -1,4 +1,5 @@
 import cudf
+import pandas as pd
 from cuml.neighbors.nearest_neighbors import NearestNeighbors
 
 from ahah.common.logger import logger
@@ -75,7 +76,7 @@ def get_buffers(
         .stack()
         .rename("poi_idx")
         .reset_index()
-        .rename(columns={"level_0": "pc_node"})
+        .rename(columns={'node_id': "pc_node"})
         .drop("level_1", axis=1)
         .groupby("poi_idx")
         .agg(list)
@@ -113,45 +114,47 @@ if __name__ == "__main__":
     logger.info("Starting routing data processing...")
     logger.debug("Reading and cleaning data...")
 
-    nodes: cudf.DataFrame = cudf.read_parquet(Config.OS_GRAPH / "nodes.parquet")
+    nodes: cudf.DataFrame = cudf.from_pandas(
+        pd.read_parquet(Config.OS_GRAPH / "nodes.parquet")
+    )
     pcs: cudf.DataFrame = clean_postcodes(
-        path=Config.RAW_DATA / "onspd" / "ONSPD_FEB_2024.csv", current=True
+        path=Config.RAW_DATA / "onspd" / "ONSPD_FEB_2024_UK.csv", current=True
     )
 
     all_pcs: cudf.DataFrame = clean_postcodes(
-        path=Config.RAW_DATA / "onspd" / "ONSPD_FEB_2024.csv", current=False
+        path=Config.RAW_DATA / "onspd" / "ONSPD_FEB_2024_UK.csv", current=False
     ).drop("lsoa11", axis=1)
-    all_pcs.reset_index().to_parquet(Config.PROCESSED_DATA / "all_pcs.parquet")
+    all_pcs.reset_index().to_pandas().to_parquet(
+        Config.PROCESSED_DATA / "all_pcs.parquet"
+    )
 
-    gpp: cudf.DataFrame = clean_gpp(
-        england=Config.RAW_DATA / "nhs" / "epraccur_nov2023.csv",
-        scotland=Config.RAW_DATA / "nhs" / "scotland" / "gpp_jan2024.csv",
-        postcodes=all_pcs,
-    )
-    hospitals: cudf.DataFrame = clean_hospitals(
-        england=Config.RAW_DATA / "nhs" / "ets_nov2023.csv",
-        scotland=Config.RAW_DATA / "nhs" / "scotland" / "hospitals_feb2024.csv",
-        postcodes=all_pcs,
-    )
+    # gpp: cudf.DataFrame = clean_gpp(
+    #     england=Config.RAW_DATA / "nhs" / "epraccur_nov2023.csv",
+    #     scotland=Config.RAW_DATA / "nhs" / "scotland" / "gpp_jan2024.csv",
+    #     postcodes=all_pcs,
+    # )
+    # hospitals: cudf.DataFrame = clean_hospitals(
+    #     england=Config.RAW_DATA / "nhs" / "ets_nov2023.csv",
+    #     scotland=Config.RAW_DATA / "nhs" / "scotland" / "hospitals_feb2024.csv",
+    #     postcodes=all_pcs,
+    # )
     dentists: cudf.DataFrame = clean_dentists(
         england=Config.RAW_DATA / "nhs" / "egdpprac_nov2023.csv",
         scotland=Config.RAW_DATA / "nhs" / "scotland" / "dentists_dec2023.csv",
         postcodes=all_pcs,
     )
-    df = cudf.read_csv(Config.RAW_DATA / "nhs" / "scotland" / "dentists_dec2023.csv")
-
-    pharmacies: cudf.DataFrame = clean_pharmacies(
-        england=Config.RAW_DATA / "nhs" / "edispensary_nov2023.csv",
-        scotland=Config.RAW_DATA / "nhs" / "scotland" / "pharmacies_nov2023.csv",
-        wales=Config.RAW_DATA / "nhs" / "wales" / "pharmacies_nov2023.xls",
-        postcodes=all_pcs,
-    )
+    # pharmacies: cudf.DataFrame = clean_pharmacies(
+    #     england=Config.RAW_DATA / "nhs" / "edispensary_nov2023.csv",
+    #     scotland=Config.RAW_DATA / "nhs" / "scotland" / "pharmacies_nov2023.csv",
+    #     wales=Config.RAW_DATA / "nhs" / "wales" / "pharmacies_nov2023.xls",
+    #     postcodes=all_pcs,
+    # )
 
     # bluespace: cudf.DataFrame = clean_bluespace(Config.RAW_DATA / "bluespace")
 
     logger.debug("Finding nearest node to postcodes...")
     pcs = nearest_nodes(df=pcs.reset_index(), nodes=nodes)
-    pcs.to_parquet(Config.PROCESSED_DATA / "postcodes.parquet")
+    pcs.to_pandas().to_parquet(Config.PROCESSED_DATA / "postcodes.parquet")
 
     poi_list = {
         # "gpp": gpp,
@@ -167,4 +170,4 @@ if __name__ == "__main__":
         df = nearest_nodes(df.reset_index(drop=True), nodes=nodes)
         df = get_buffers(poi=df, postcodes=pcs, k=10)
         logger.debug(f"Saving {poi}:{Config.PROCESSED_DATA}...")
-        df.to_parquet(Config.PROCESSED_DATA / f"{poi}.parquet")
+        df.to_pandas().to_parquet(Config.PROCESSED_DATA / f"{poi}.parquet")
