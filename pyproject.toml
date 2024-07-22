@@ -6,13 +6,16 @@ authors = [
     { name = "cjber", email = "cjberragan@gmail.com" }
 ]
 dependencies = [
-    "cuml-cu12>=24.2.0",
-    "cugraph-cu12>=24.2.0",
-    "cuspatial-cu12>=24.2.0",
-    "cuproj-cu12>=24.2.0",
     "rich>=13.7.1",
-    "tqdm>=4.66.2",
-    "ipdb>=0.13.13",
+    "requests>=2.31.0",
+    "osmium>=3.7.0",
+    "ukroutes @ git+https://github.com/cjber/ukroutes",
+    "geojson>=3.1.0",
+    "matplotlib>=3.9.1",
+    "fastexcel>=0.10.4",
+    "pyqt6>=6.7.0",
+    "h3pandas>=0.2.6",
+    "dvc>=3.51.3",
 ]
 readme = "README.md"
 requires-python = ">= 3.10"
@@ -25,6 +28,8 @@ build-backend = "hatchling.build"
 managed = true
 dev-dependencies = [
     "ipython>=8.23.0",
+    "ipdb>=0.13.13",
+    "sourcery-cli>=1.16.0",
 ]
 
 [tool.hatch.metadata]

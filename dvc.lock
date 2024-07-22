@@ -1,0 +1,58 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python -m ahah.preprocess
+    deps:
+    - path: data/raw/nhs
+      hash: md5
+      md5: ea8e97bd440212f17e5b0838597367ed.dir
+      size: 795082
+      nfiles: 9
+    - path: data/raw/onspd
+      hash: md5
+      md5: b8d60f9c098d60850218dde5b7e8d616.dir
+      size: 1623519126
+      nfiles: 1
+    - path: data/raw/oproad
+      hash: md5
+      md5: 8cb00fc23822c3cd0a38a9e1a4175adb.dir
+      size: 2097531024
+      nfiles: 2
+    - path: data/raw/osm
+      hash: md5
+      md5: 658dadbe59bcea3e8f9bb0aded000458.dir
+      size: 3235852723
+      nfiles: 8
+    outs:
+    - path: data/processed/bluespace.parquet
+      hash: md5
+      md5: fe1f24d572b8f69b8c744f92e24033b0
+      size: 154293
+    - path: data/processed/dentists.parquet
+      hash: md5
+      md5: b5a02dad11575cecd1fbad578e3a3855
+      size: 75908
+    - path: data/processed/gpp.parquet
+      hash: md5
+      md5: bef11177753b9c463ab21e23aec6cec8
+      size: 149737
+    - path: data/processed/hospitals.parquet
+      hash: md5
+      md5: ce04d9811ab4f10172871dce02e43a9f
+      size: 22277
+    - path: data/processed/onspd/postcodes.parquet
+      hash: md5
+      md5: 3b3f0b8d7843132b76142b10e4b02884
+      size: 14307943
+    - path: data/processed/oproad/edges.parquet
+      hash: md5
+      md5: f0325c8f6df608a89077b6b606d08a41
+      size: 53557617
+    - path: data/processed/oproad/nodes.parquet
+      hash: md5
+      md5: 84c501758606a507a90fa4d71c74fa3f
+      size: 53424573
+    - path: data/processed/pharmacies.parquet
+      hash: md5
+      md5: bd6300a2be44b292e78def27ea4297e4
+      size: 199155

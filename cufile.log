@@ -1,0 +1,21 @@
+ 22-07-2024 14:29:01:454 [pid=48943 tid=48943] ERROR  0:140 unable to load,  liburcu-bp.so.6 
+
+ 22-07-2024 14:29:01:454 [pid=48943 tid=48943] ERROR  0:140 unable to load,  liburcu-bp.so.1 
+
+ 22-07-2024 14:29:01:454 [pid=48943 tid=48943] WARN   0:168 failed to open /proc/driver/nvidia-fs/devcount  error: No such file or directory
+ 22-07-2024 14:29:01:454 [pid=48943 tid=48943] NOTICE  cufio-drv:727 running in compatible mode
+ 22-07-2024 14:29:01:855 [pid=48943 tid=48943] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:51
+ 22-07-2024 14:29:01:855 [pid=48943 tid=48943] ERROR  cufio-fs:742 error getting volume attributes error for device: dev_no: 0:51
+ 22-07-2024 14:29:01:855 [pid=48943 tid=48943] ERROR  cufio-obj:215 unable to get volume attributes for fd 42
+ 22-07-2024 14:29:01:855 [pid=48943 tid=48943] ERROR  cufio:311 cuFileHandleRegister error, failed to allocate file object
+ 22-07-2024 14:29:01:855 [pid=48943 tid=48943] ERROR  cufio:339 cuFileHandleRegister error: internal error
+ 22-07-2024 14:29:07:808 [pid=48943 tid=48943] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:51
+ 22-07-2024 14:29:07:808 [pid=48943 tid=48943] ERROR  cufio-fs:742 error getting volume attributes error for device: dev_no: 0:51
+ 22-07-2024 14:29:07:808 [pid=48943 tid=48943] ERROR  cufio-obj:215 unable to get volume attributes for fd 44
+ 22-07-2024 14:29:07:808 [pid=48943 tid=48943] ERROR  cufio:311 cuFileHandleRegister error, failed to allocate file object
+ 22-07-2024 14:29:07:808 [pid=48943 tid=48943] ERROR  cufio:339 cuFileHandleRegister error: internal error
+ 22-07-2024 14:29:25:94 [pid=48943 tid=48943] ERROR  cufio-fs:322 error creating udev_device for block device dev_no: 0:51
+ 22-07-2024 14:29:25:94 [pid=48943 tid=48943] ERROR  cufio-fs:742 error getting volume attributes error for device: dev_no: 0:51
+ 22-07-2024 14:29:25:94 [pid=48943 tid=48943] ERROR  cufio-obj:215 unable to get volume attributes for fd 46
+ 22-07-2024 14:29:25:94 [pid=48943 tid=48943] ERROR  cufio:311 cuFileHandleRegister error, failed to allocate file object
+ 22-07-2024 14:29:25:94 [pid=48943 tid=48943] ERROR  cufio:339 cuFileHandleRegister error: internal error

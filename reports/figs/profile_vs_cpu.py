@@ -11,16 +11,16 @@ from ahah.routing_cpu import CPURouting
 
 
 def get_data(pc: Union["str", list], use_gpu: bool):
-    edges = cudf.read_parquet(Config.OS_GRAPH / "edges.parquet")
-    nodes = cudf.read_parquet(Config.OS_GRAPH / "nodes.parquet")
-    postcodes = cudf.read_parquet(Config.PROCESSED_DATA / "postcodes.parquet")
+    edges = cudf.read_parquet(Config.OPROAD / "edges.parquet")
+    nodes = cudf.read_parquet(Config.OPROAD / "nodes.parquet")
+    postcodes = cudf.read_parquet(Config.PROCESSED / "postcodes.parquet")
 
     if isinstance(pc, str):
         postcodes = postcodes[postcodes["postcode"].str.match(pc)]
     elif isinstance(pc, list):
         postcodes = postcodes[postcodes["postcode"].isin(pc)]
 
-    gpp = cudf.read_parquet(Config.PROCESSED_DATA / "gpp.parquet")
+    gpp = cudf.read_parquet(Config.PROCESSED / "gpp.parquet")
     gpp = gpp[gpp["postcode"].isin(postcodes["postcode"])]
     gpp = nearest_nodes(gpp.reset_index(drop=True), nodes=nodes)
 

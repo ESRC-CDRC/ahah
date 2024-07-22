@@ -5,7 +5,7 @@ from scipy.interpolate import griddata
 from shapely.geometry import Polygon
 
 from ahah.common.logger import logger
-from ahah.common.utils import Config, clean_air, combine_lsoa
+from ahah.common.utils import Config, Paths, clean_air
 
 GRID_SIZE = 1000
 
@@ -23,7 +23,7 @@ def create_polygon(x: float, y: float, grid_size: int):
 
 
 def interpolate_air(
-    air: pd.DataFrame, col: str, lsoa: gpd.GeoDataFrame, grid_size: int
+    air: pd.DataFrame, col: str, msoa: gpd.GeoDataFrame, grid_size: int
 ):
     logger.debug(f"Interpolating air: {col}")
     grid_x, grid_y = np.mgrid[  # type:ignore
@@ -47,28 +47,24 @@ def interpolate_air(
     )
 
     grid_gdf = gpd.GeoDataFrame(grid_df, geometry="geometry", crs=27700)
-    return gpd.sjoin(grid_gdf, lsoa).groupby("lsoa11")[col].mean()
+    return gpd.sjoin(grid_gdf, msoa).groupby("MSOA21CD")[col].mean()
 
 
 if __name__ == "__main__":
     logger.info("Starting air quality processing...")
 
-    lsoa = combine_lsoa(
-        eng=Config.RAW_DATA / "lsoa" / "england_lsoa_2011.shp",
-        scot=Config.RAW_DATA / "lsoa" / "SG_DataZone_Bdry_2011.shp",
-        wales=Config.RAW_DATA / "lsoa" / "lsoa_wales_2011.gpkg",
-    )
-    no = clean_air(path=Config.RAW_DATA / "air/mapno22019.csv", col="no22019")
-    so = clean_air(path=Config.RAW_DATA / "air/mapso22019.csv", col="so22019")
-    pm = clean_air(path=Config.RAW_DATA / "air/mappm102019g.csv", col="pm102019g")
-    no = interpolate_air(air=no, col="no22019", lsoa=lsoa, grid_size=GRID_SIZE)
-    so = interpolate_air(air=so, col="so22019", lsoa=lsoa, grid_size=GRID_SIZE)
-    pm = interpolate_air(air=pm, col="pm102019g", lsoa=lsoa, grid_size=GRID_SIZE)
+    msoa = gpd.read_file(Paths.RAW / "gov" / "msoa-2021-bfc.gpkg")
+    no = clean_air(path=Paths.RAW / "air/mapno22022.csv", col="no22022")
+    so = clean_air(path=Paths.RAW / "air/mapso22022.csv", col="so22022")
+    pm = clean_air(path=Paths.RAW / "air/mappm102022g.csv", col="pm102022g")
+    no = interpolate_air(air=no, col="no22022", msoa=msoa, grid_size=GRID_SIZE)
+    so = interpolate_air(air=so, col="so22022", msoa=msoa, grid_size=GRID_SIZE)
+    pm = interpolate_air(air=pm, col="pm102022g", msoa=msoa, grid_size=GRID_SIZE)
 
-    logger.debug(f"Saving air dataframe to {Config.OUT_DATA / 'lsoa_air.csv'}")
+    logger.debug(f"Saving air dataframe to {Paths.OUT / 'msoa-2021-air.csv'}")
     air_dfs = [pd.DataFrame(df) for df in [no, so, pm]]
 
-    lsoa_air = lsoa.set_index("lsoa11").join(air_dfs).reset_index()
-    lsoa_air[["lsoa11", "no22019", "so22019", "pm102019g"]].to_csv(
-        Config.OUT_DATA / "lsoa_air.csv", index=False
+    msoa_air = msoa.set_index("MSOA21CD").join(air_dfs).reset_index()
+    msoa_air[["MSOA21CD", "no22022", "so22022", "pm102022g"]].to_csv(
+        Paths.OUT / "air" / "msoa-2021-air.csv", index=False
     )

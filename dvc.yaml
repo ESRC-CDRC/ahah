@@ -1,114 +1,35 @@
 stages:
-  get_nhs:
-    cmd: python -m ahah.get_nhs
-    outs:
-      # Hospitals
-      - data/raw/nhs/ets_nov2023.csv
-      - data/raw/nhs/scotland/hospitals_feb2024.csv
-
-      # GP practices
-      - data/raw/nhs/epraccur_nov2023.csv
-      - data/raw/nhs/scotland/gpp_jan2024.csv
-
-      # Dentists
-      - data/raw/nhs/egdpprac_nov2023.csv
-      - data/raw/nhs/scotland/dentists_sept2023.csv
-
-      # Pharmacies
-      - data/raw/nhs/edispensary_nov2023.csv
-      - data/raw/nhs/scotland/pharmacies_nov2023.csv
-      - data/raw/nhs/wales/pharmacy_nov2023.xls
-
-  os_highways:
-    cmd: python -m ahah.os_highways
+  preprocess:
+    cmd: python -m ahah.preprocess
     deps:
-      - data/raw/os_highways/oproad_gb.gpkg
-      - data/raw/os_highways/strtgi_essh_gb/ferry_line.shp
+      - data/raw/nhs
+      - data/raw/onspd
+      - data/raw/oproad
+      - data/raw/osm
     outs:
-      - data/processed/osm/nodes.parquet
-      - data/processed/osm/edges.parquet
-
-  process_routing:
-    cmd: python -m ahah.process_routing
-    deps:
-      - data/processed/osm/nodes.parquet
-      - ./data/raw/onspd/ONSPD_FEB_2024.csv
-
-      - data/raw/nhs/ets.csv
-      - data/raw/nhs/scotland/hospitals.csv
-
-      - data/raw/nhs/epraccur.csv
-      - data/raw/nhs/scotland/gpp.csv
-
-      - data/raw/nhs/egdpprac.csv
-      - data/raw/nhs/scotland/dentists.csv
-
-      - data/raw/nhs/edispensary.csv
-      - data/raw/nhs/scotland/pharmacies.csv
-
-      # - data/raw/greenspace/access.shp
-      # - data/raw/bluespace
-    outs:
-      - data/processed/postcodes.parquet
-      - data/processed/hospitals.parquet
-      - data/processed/gpp.parquet
+      - data/processed/onspd/postcodes.parquet
+      - data/processed/oproad/edges.parquet
+      - data/processed/oproad/nodes.parquet
+      - data/processed/bluespace.parquet
       - data/processed/dentists.parquet
+      - data/processed/gpp.parquet
+      - data/processed/hospitals.parquet
       - data/processed/pharmacies.parquet
-      # - data/processed/greenspace.parquet
-      # - data/processed/bluespace.parquet
-
-  # process_air:
-  #   cmd: python -m ahah.process_air
-  #   deps:
-  #     - data/raw/lsoa/england_lsoa_2011.shp
-  #     - data/raw/air/mapno22019.csv
-  #     - data/raw/air/mapso22019.csv
-  #     - data/raw/air/mappm102019g.csv
-  #   outs:
-  #     - data/out/lsoa_air.csv
 
   routing:
     cmd: python -m ahah.routing
     deps:
-      - data/processed/osm/edges.parquet
-      - data/processed/postcodes.parquet
-      - data/processed/hospitals.parquet
-      - data/processed/gpp.parquet
-      - data/processed/dentists.parquet
-      - data/processed/pharmacies.parquet
-      - data/processed/greenspace.parquet
-      - data/processed/bluespace.parquet
+      - data/processed
     outs:
-      - data/out/distances_hospitals.csv
-      - data/out/distances_gpp.csv
-      - data/out/distances_dentists.csv
-      - data/out/distances_pharmacies.csv
-      - data/out/distances_greenspace.csv
-      - data/out/distances_bluespace.csv
+      - data/out/distances_bluespace.parquet
+      - data/out/distances_dentists.parquet
+      - data/out/distances_gpp.parquet
+      - data/out/distances_hospitals.parquet
+      - data/out/distances_pharmacies.parquet
 
-  aggregate:
-    cmd: python -m ahah.aggregate_lsoa
+  air:
+    cmd: python -m ahah.air
     deps:
-      - data/out/distances_hospitals.csv
-      - data/out/distances_gpp.csv
-      - data/out/distances_dentists.csv
-      - data/out/distances_pharmacies.csv
-      - data/out/distances_greenspace.csv
-      - data/out/distances_bluespace.csv
-      - data/raw/ndvi/sentinel_postcode_ndvi_20210419.csv
-      - data/processed/postcodes.parquet
+      - data/raw/air
     outs:
-      - data/out/median_dists.csv
-
-  create_index:
-    cmd: python -m ahah.create_index
-    deps:
-      - data/out/median_dists.csv
-      - data/out/010422_CILLIANBERRAGAN_AHAH_WEIGHTED_MEANS_LSOA.csv
-      - data/raw/v2/allvariableslsoawdeciles.csv
-      - data/raw/lsoa/england_lsoa_2011.shp
-      - data/raw/lsoa/SG_DataZone_Bdry_2011.shp
-      - data/raw/lsoa/lsoa_wales_2011.gpkg
-    outs:
-      - data/out/v3_lsoa.gpkg
-      - data/out/v2_lsoa.gpkg
+      - data/out/air/msoa-2021-air.csv

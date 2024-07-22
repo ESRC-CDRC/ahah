@@ -158,6 +158,7 @@ The main domains across our  indicators: retail  services,  health  services, ph
 - [Ferry Routes](https://www.ordnancesurvey.co.uk/business-government/products/strategi)
 - [Air quality](https://uk-air.defra.gov.uk/data/pcm-data)
 - Greenspace (NDVI Classification)
+- [Bluespace]
 - [NHS
   England](https://digital.nhs.uk/services/organisation-data-service/data-downloads)
 - [NHS Scotland](https://www.opendata.nhs.scot/dataset/)

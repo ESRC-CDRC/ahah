@@ -11,13 +11,13 @@ def exp_default(x, df):
     return norm.ppf((x - 0.5) / len(df))
 
 
-def read_v3():
-    v3 = pd.read_csv("./data/out/median_dists.csv")
-    v3_secure = pd.read_csv("./data/out/010422_CILLIANBERRAGAN_AHAH_MEDIAN_LSOA.csv")
-    air = pd.read_csv("./data/out/lsoa_air.csv")
-    return v3.merge(v3_secure, on="lsoa11", how="outer").merge(
-        air, on="lsoa11", how="outer"
-    )
+# def read_v3():
+#     v3 = pd.read_csv("./data/out/median_dists.csv")
+#     v3_secure = pd.read_csv("./data/out/010422_CILLIANBERRAGAN_AHAH_MEDIAN_LSOA.csv")
+#     air = pd.read_csv("./data/out/lsoa_air.csv")
+#     return v3.merge(v3_secure, on="lsoa11", how="outer").merge(
+#         air, on="lsoa11", how="outer"
+#     )
 
 
 def read_v2():
