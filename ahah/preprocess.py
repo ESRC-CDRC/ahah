@@ -1,16 +1,16 @@
 import json
-import pandas as pd
-import geopandas as gpd
-from shapely.geometry import MultiPolygon, Polygon
 import urllib.request
 from io import BytesIO
+from pathlib import Path
 from zipfile import ZipFile
 
+import geopandas as gpd
+import pandas as pd
 import polars as pl
+from shapely.geometry import MultiPolygon, Polygon
 from ukroutes.oproad.utils import process_oproad
 
 from ahah.common.utils import Config, Paths
-from pathlib import Path
 
 
 def _read_zip_from_url(filename: str) -> BytesIO:
@@ -212,6 +212,15 @@ def process_bluespace():
     bs.to_parquet(Paths.PROCESSED / "bluespace.parquet", index=False)
 
 
+def process_greenspace():
+    gs = gpd.read_file(Paths.RAW / "oproad" / "opgrsp_gb.gpkg", layer="access_point")
+    gs["easting"], gs["northing"] = gs.geometry.x, gs.geometry.y
+    gs = gs.round(-3).drop_duplicates(subset=["easting", "northing"])
+    pl.from_pandas(gs[["id", "easting", "northing"]]).write_parquet(
+        Paths.PROCESSED / "greenspace.parquet"
+    )
+
+
 def main():
     process_postcodes()
     postcodes = pl.read_parquet(Paths.PROCESSED / "onspd" / "postcodes.parquet")
@@ -221,6 +230,7 @@ def main():
     process_dentists(postcodes)
     process_pharmacies(postcodes)
     process_bluespace()
+    process_greenspace()
 
     _ = process_oproad(outdir=Paths.PROCESSED / "oproad")
 
