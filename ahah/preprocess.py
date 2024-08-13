@@ -7,8 +7,6 @@ from zipfile import ZipFile
 import geopandas as gpd
 import pandas as pd
 import polars as pl
-import requests
-from bs4 import BeautifulSoup
 from pyproj import Transformer
 from shapely.geometry import MultiPolygon, Polygon
 from ukroutes.oproad.utils import process_oproad
