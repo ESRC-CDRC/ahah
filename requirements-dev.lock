@@ -7,6 +7,7 @@
 #   all-features: false
 #   with-sources: false
 #   generate-hashes: false
+#   universal: false
 
 -e file:.
 aiohttp==3.9.5
@@ -39,8 +40,15 @@ attrs==23.2.0
     # via dvc
     # via dvc-data
     # via sqltrie
+    # via visions
+beautifulsoup4==4.12.3
+    # via ahah
 billiard==4.2.0
     # via celery
+blinker==1.8.2
+    # via flask
+branca==0.7.2
+    # via folium
 cachetools==5.4.0
     # via cudf-cu12
 celery==5.4.0
@@ -63,6 +71,7 @@ click==8.1.7
     # via dask
     # via dask-cuda
     # via distributed
+    # via flask
     # via typer
 click-didyoumean==0.3.1
     # via celery
@@ -97,6 +106,16 @@ cupy-cuda12x==13.2.0
     # via dask-cudf-cu12
 cycler==0.12.1
     # via matplotlib
+dacite==1.8.1
+    # via ydata-profiling
+dash==2.17.1
+    # via ahah
+dash-core-components==2.0.0
+    # via dash
+dash-html-components==2.0.0
+    # via dash
+dash-table==5.0.0
+    # via dash
 dask==2024.5.1
     # via dask-expr
     # via distributed
@@ -145,6 +164,8 @@ dvc-task==0.4.0
     # via dvc
 entrypoints==0.4
     # via gto
+et-xmlfile==1.1.0
+    # via openpyxl
 exceptiongroup==1.2.2
     # via ipython
 executing==2.0.1
@@ -155,10 +176,14 @@ fastrlock==0.8.2
     # via cupy-cuda12x
 filelock==3.15.4
     # via iterative-telemetry
+flask==3.0.3
+    # via dash
 flatten-dict==0.4.2
     # via dvc
 flufl-lock==8.1.0
     # via dvc
+folium==0.17.0
+    # via ahah
 fonttools==4.53.1
     # via matplotlib
 frozenlist==1.4.1
@@ -198,23 +223,36 @@ h3==3.7.7
     # via h3pandas
 h3pandas==0.2.6
     # via ahah
+htmlmin==0.1.12
+    # via ydata-profiling
 hydra-core==1.3.2
     # via dvc
 idna==3.7
     # via requests
     # via yarl
+imagehash==4.3.1
+    # via visions
+    # via ydata-profiling
 importlib-metadata==8.0.0
+    # via dash
     # via dask
 ipdb==0.13.13
 ipython==8.26.0
     # via ipdb
 iterative-telemetry==0.0.8
     # via dvc
+itsdangerous==2.2.0
+    # via flask
 jedi==0.19.1
     # via ipython
 jinja2==3.1.4
+    # via branca
     # via distributed
+    # via flask
+    # via folium
+    # via ydata-profiling
 joblib==1.4.2
+    # via phik
     # via raft-dask-cu12
 kiwisolver==1.4.5
     # via matplotlib
@@ -234,8 +272,13 @@ markdown-it-py==3.0.0
     # via rich
 markupsafe==2.1.5
     # via jinja2
+    # via werkzeug
 matplotlib==3.9.1
     # via ahah
+    # via phik
+    # via seaborn
+    # via wordcloud
+    # via ydata-profiling
 matplotlib-inline==0.1.7
     # via ipython
 mdurl==0.1.2
@@ -245,8 +288,14 @@ msgpack==1.0.8
 multidict==6.0.5
     # via aiohttp
     # via yarl
+multimethod==1.12
+    # via visions
+    # via ydata-profiling
+nest-asyncio==1.6.0
+    # via dash
 networkx==3.3
     # via dvc
+    # via visions
 numba==0.60.0
     # via cudf-cu12
     # via cugraph-cu12
@@ -254,6 +303,7 @@ numba==0.60.0
     # via distributed-ucxx-cu12
     # via raft-dask-cu12
     # via rmm-cu12
+    # via ydata-profiling
 numpy==1.26.4
     # via contourpy
     # via cudf-cu12
@@ -261,25 +311,37 @@ numpy==1.26.4
     # via cupy-cuda12x
     # via dask-cuda
     # via dask-cudf-cu12
+    # via folium
     # via geopandas
     # via h3pandas
+    # via imagehash
     # via matplotlib
     # via numba
     # via pandas
+    # via patsy
+    # via phik
     # via pyarrow
     # via pylibraft-cu12
     # via pyogrio
+    # via pywavelets
     # via raft-dask-cu12
     # via rmm-cu12
     # via scipy
+    # via seaborn
     # via shapely
+    # via statsmodels
     # via ucx-py-cu12
     # via ucxx-cu12
+    # via visions
+    # via wordcloud
+    # via ydata-profiling
 nvtx==0.2.10
     # via cudf-cu12
 omegaconf==2.3.0
     # via dvc
     # via hydra-core
+openpyxl==3.1.5
+    # via ahah
 orjson==3.10.6
     # via sqltrie
 osmium==3.7.0
@@ -292,7 +354,9 @@ packaging==24.1
     # via geopandas
     # via hydra-core
     # via matplotlib
+    # via plotly
     # via pyogrio
+    # via statsmodels
 pandas==2.2.2
     # via cudf-cu12
     # via dask-cuda
@@ -300,6 +364,11 @@ pandas==2.2.2
     # via dask-expr
     # via geopandas
     # via h3pandas
+    # via phik
+    # via seaborn
+    # via statsmodels
+    # via visions
+    # via ydata-profiling
 parso==0.8.4
     # via jedi
 partd==1.4.2
@@ -307,12 +376,22 @@ partd==1.4.2
 pathspec==0.12.1
     # via dvc
     # via scmrepo
+patsy==0.5.6
+    # via statsmodels
 pexpect==4.9.0
     # via ipython
+phik==0.12.4
+    # via ydata-profiling
 pillow==10.4.0
+    # via imagehash
     # via matplotlib
+    # via visions
+    # via wordcloud
 platformdirs==3.11.0
     # via dvc
+plotly==5.23.0
+    # via ahah
+    # via dash
 polars==1.2.0
     # via ukroutes
 prompt-toolkit==3.0.47
@@ -334,6 +413,7 @@ pycparser==2.22
     # via cffi
 pydantic==2.8.2
     # via gto
+    # via ydata-profiling
 pydantic-core==2.20.1
     # via pydantic
 pydot==3.0.1
@@ -369,7 +449,7 @@ pyparsing==3.1.2
     # via pydot
 pyproj==3.6.1
     # via geopandas
-pyqt6==6.7.0
+pyqt6==6.7.1
     # via ahah
 pyqt6-qt6==6.7.2
     # via pyqt6
@@ -381,10 +461,13 @@ python-dateutil==2.9.0.post0
     # via pandas
 pytz==2024.1
     # via pandas
+pywavelets==1.6.0
+    # via imagehash
 pyyaml==6.0.1
     # via dask
     # via distributed
     # via omegaconf
+    # via ydata-profiling
 raft-dask-cu12==24.6.0
     # via cugraph-cu12
 rapids-dask-dependency==24.6.0
@@ -395,10 +478,15 @@ rapids-dask-dependency==24.6.0
     # via raft-dask-cu12
 requests==2.32.3
     # via ahah
+    # via dash
     # via dvc
     # via dvc-studio-client
+    # via folium
     # via iterative-telemetry
     # via osmium
+    # via ydata-profiling
+retrying==1.3.4
+    # via dash
 rich==13.7.1
     # via ahah
     # via cudf-cu12
@@ -416,14 +504,21 @@ ruamel-yaml==0.18.6
     # via gto
 ruamel-yaml-clib==0.2.8
     # via ruamel-yaml
-scipy==1.14.0
+scipy==1.13.1
+    # via imagehash
+    # via phik
+    # via statsmodels
     # via ukroutes
+    # via ydata-profiling
 scmrepo==3.3.6
     # via dvc
     # via gto
+seaborn==0.13.2
+    # via ydata-profiling
 semver==3.0.2
     # via gto
 setuptools==71.1.0
+    # via dash
     # via zc-lockfile
 shapely==2.0.5
     # via geopandas
@@ -439,21 +534,29 @@ six==1.16.0
     # via asttokens
     # via configobj
     # via flatten-dict
+    # via patsy
     # via python-dateutil
+    # via retrying
 smmap==5.0.1
     # via gitdb
 sortedcontainers==2.4.0
     # via distributed
+soupsieve==2.5
+    # via beautifulsoup4
 sourcery-cli==1.18.0
 sqltrie==0.11.0
     # via dvc-data
 stack-data==0.6.3
     # via ipython
+statsmodels==0.14.2
+    # via ydata-profiling
 tabulate==0.9.0
     # via dvc
     # via gto
 tblib==3.0.0
     # via distributed
+tenacity==9.0.0
+    # via plotly
 tomli==2.0.1
     # via ipdb
 tomlkit==0.13.0
@@ -470,18 +573,23 @@ tqdm==4.66.4
     # via fsspec
     # via scmrepo
     # via ukroutes
+    # via ydata-profiling
 traitlets==5.14.3
     # via ipython
     # via matplotlib-inline
+typeguard==4.3.0
+    # via ydata-profiling
 typer==0.12.3
     # via gto
 typing-extensions==4.12.2
     # via asyncssh
     # via cudf-cu12
+    # via dash
     # via h3pandas
     # via ipython
     # via pydantic
     # via pydantic-core
+    # via typeguard
     # via typer
 tzdata==2024.1
     # via celery
@@ -491,7 +599,7 @@ ucx-py-cu12==0.38.0
     # via raft-dask-cu12
 ucxx-cu12==0.38.0
     # via distributed-ucxx-cu12
-ukroutes @ git+https://github.com/cjber/ukroutes@866b57d01779af83843dc5b1c2dcdf61cdd8f82a
+ukroutes @ git+https://github.com/cjber/ukroutes@acd38ce1f492f1aac43e08e0633a8e5661fd0e5c
     # via ahah
 urllib3==2.2.2
     # via distributed
@@ -501,13 +609,24 @@ vine==5.1.0
     # via amqp
     # via celery
     # via kombu
+visions==0.7.6
+    # via ydata-profiling
 voluptuous==0.15.2
     # via dvc
     # via dvc-studio-client
 wcwidth==0.2.13
     # via prompt-toolkit
+werkzeug==3.0.3
+    # via dash
+    # via flask
+wordcloud==1.9.3
+    # via ydata-profiling
+xyzservices==2024.6.0
+    # via folium
 yarl==1.9.4
     # via aiohttp
+ydata-profiling==4.9.0
+    # via ahah
 zc-lockfile==3.0.post1
     # via dvc
 zict==3.0.0
