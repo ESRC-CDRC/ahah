@@ -6,8 +6,12 @@ notebooks
 covid_access
 data_story.Rmd
 debug.log
+cufile.log
+nohup.out
 
 reports/
+
+.old/
 
 __pycache__
 
