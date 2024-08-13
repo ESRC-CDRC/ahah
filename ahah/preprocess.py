@@ -280,12 +280,12 @@ def process_bluespace():
         gpd.read_parquet(Paths.RAW / "osm" / "gb-coast.parquet")
         .to_crs(27700)
         .get_coordinates()
-        .round(-3)
+        .round(-2)
     )
     bs = bluespace[
         (bluespace.geometry.apply(lambda x: isinstance(x, (MultiPolygon, Polygon))))
     ].to_crs(27700)
-    bs = bs[bs.area > 10_000].get_coordinates().round(-3)
+    bs = bs[bs.area > 10_000].get_coordinates().round(-2)
     bs = (
         pd.concat([coast, bs])
         .drop_duplicates()
@@ -294,13 +294,6 @@ def process_bluespace():
     bs.to_parquet(Paths.PROCESSED / "bluespace.parquet", index=False)
 
 
-def process_greenspace():
-    gs = gpd.read_file(Paths.RAW / "oproad" / "opgrsp_gb.gpkg", layer="access_point")
-    gs["easting"], gs["northing"] = gs.geometry.x, gs.geometry.y
-    gs = gs.round(-3).drop_duplicates(subset=["easting", "northing"])
-    pl.from_pandas(gs[["id", "easting", "northing"]]).write_parquet(
-        Paths.PROCESSED / "greenspace.parquet"
-    )
 
 
 def process_ldc(postcodes):
@@ -329,7 +322,6 @@ def main():
     process_dentists(postcodes)
     process_pharmacies(postcodes)
     process_bluespace()
-    process_greenspace()
     process_ldc(postcodes)
 
     _ = process_oproad(outdir=Paths.PROCESSED / "oproad")

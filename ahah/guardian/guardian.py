@@ -1,5 +1,8 @@
+import geopandas as gpd
 import polars as pl
 from pyproj import Transformer
+
+from ahah.common.utils import Paths
 
 transformer = Transformer.from_crs("epsg:4326", "epsg:27700")
 
@@ -25,7 +28,7 @@ def process_pubs():
             pl.col("coords").list[1].alias("northing"),
         )
         .select(["FHRSID", "easting", "northing"])
-        .write_parquet("./data/processed/pubs.parquet")
+        .write_parquet("./data/processed/guardian/pubs.parquet")
     )
 
 
@@ -47,7 +50,7 @@ def process_cinemas():
             pl.col("coords").list[1].alias("northing"),
         )
         .select(["full_address", "easting", "northing"])
-        .write_parquet("./data/processed/cinemas.parquet")
+        .write_parquet("./data/processed/guardian/cinemas.parquet")
     )
 
 
@@ -69,7 +72,7 @@ def process_libraries():
             pl.col("coords").list[1].alias("northing"),
         )
         .select(["id", "easting", "northing"])
-        .write_parquet("./data/processed/libraries.parquet")
+        .write_parquet("./data/processed/guardian/libraries.parquet")
     )
 
 
@@ -92,7 +95,16 @@ def process_museums():
             pl.col("coords").list[1].alias("northing"),
         )
         .select(["id", "easting", "northing"])
-        .write_parquet("./data/processed/museums.parquet")
+        .write_parquet("./data/processed/guardian/museums.parquet")
+    )
+
+
+def process_greenspace():
+    gs = gpd.read_file(Paths.RAW / "oproad" / "opgrsp_gb.gpkg", layer="access_point")
+    gs["easting"], gs["northing"] = gs.geometry.x, gs.geometry.y
+    gs = gs.round(-1).drop_duplicates(subset=["easting", "northing"])
+    pl.from_pandas(gs[["id", "easting", "northing"]]).write_parquet(
+        Paths.PROCESSED / "guardian" / "greenspace.parquet"
     )
 
 
@@ -101,3 +113,4 @@ if __name__ == "__main__":
     process_cinemas()
     process_libraries()
     process_museums()
+    process_greenspace()
