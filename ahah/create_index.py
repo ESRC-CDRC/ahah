@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
+from ahah.common.utils import Paths
+
 
 def exp_trans(x, df):
     return -23 * np.log(1 - (x / len(df)) * (1 - np.exp(-100 / 23)))
@@ -11,24 +13,11 @@ def exp_default(x, df):
     return norm.ppf((x - 0.5) / len(df))
 
 
-# def read_v3():
-#     v3 = pd.read_csv("./data/out/median_dists.csv")
-#     v3_secure = pd.read_csv("./data/out/010422_CILLIANBERRAGAN_AHAH_MEDIAN_LSOA.csv")
-#     air = pd.read_csv("./data/out/lsoa_air.csv")
-#     return v3.merge(v3_secure, on="lsoa11", how="outer").merge(
-#         air, on="lsoa11", how="outer"
-#     )
-
-
-def read_v2():
-    return pd.read_csv("./data/raw/v2/allvariableslsoawdeciles.csv")
-
-
 def process(idx, ahv: str):
     low_dist = ["gp", "dent", "phar", "hosp", "leis"]
     env_dist = ["gpas", "blue"]
     air_qual = ["no2", "so2", "pm10"]
-    high_dist = ["gamb", "off", "pubs", "tob", "ffood"]
+    high_dist = ["gamb", "pubs", "tob", "ffood"]
 
     all_dists = low_dist + env_dist + air_qual + high_dist
     idx = idx.rename(columns={col: f"{ahv}{col}" for col in all_dists})
@@ -111,8 +100,8 @@ def process(idx, ahv: str):
 
 
 if __name__ == "__main__":
-    v3 = read_v3()
-    v3 = v3.rename(
+    v4 = pd.read_csv("./data/out/AHAH-V4-LSOA21CD.csv")
+    v4 = v4.rename(
         columns={
             "gpp": "gp",
             "dentists": "dent",
@@ -126,23 +115,13 @@ if __name__ == "__main__":
             "pm102019g": "pm10",
             "fastfood": "ffood",
             "gambling": "gamb",
-            "offlicences": "off",
             "tobacconists": "tob",
+            "no22022": "no2",
+            "so22022": "so2",
+            "pm102022g": "pm10",
         }
-    )
-    v3 = v3.drop(
-        [
-            "easting_x",
-            "northing_x",
-            "node_id_x",
-            "easting_y",
-            "northing_y",
-            "node_id_y",
-            "greenspace",
-        ],
-        axis=1,
-    )
-    v3 = process(v3, ahv="ah3")
-    v3 = v3[[c for c in v3.columns if not c.endswith("expd")]]
+    ).fillna(method="ffill")
+    v4 = process(v4, ahv="ah4")
+    v4 = v4[[c for c in v4.columns if not c.endswith("expd")]]
 
-    v3.to_csv(Config.OUT_DATA / "AHAH_V3.csv", index=False)
+    v4.to_csv(Paths.OUT / "AHAH_V4.csv", index=False)

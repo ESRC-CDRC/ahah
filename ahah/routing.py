@@ -33,7 +33,7 @@ def _routing(df, name, outputs, nodes, edges):
         .join(cudf.from_pandas(outputs).set_index("node_id"), how="right")
         .reset_index()
     )
-    OUT_FILE = Paths.OUT_DATA / f"distances_{name}.csv"
+    OUT_FILE = Paths.OUT_DATA / f"distances_{name}.parquet"
     distances.to_pandas().to_parquet(OUT_FILE, index=False)
 
 
