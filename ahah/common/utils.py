@@ -1,13 +1,6 @@
-import os
 from pathlib import Path
-from typing import Union
 
-import cudf
 import pandas as pd
-
-from ahah.common.logger import logger
-
-DataFrame = Union[pd.DataFrame, cudf.DataFrame]
 
 
 class Paths:
@@ -29,8 +22,8 @@ class Config:
         "bluespace",
     ]
 
-    NHS_URL = "https://files.digital.nhs.uk/assets/ods/current/"
-    NHS_FILES = {
+    NHS_ENG_URL = "https://files.digital.nhs.uk/assets/ods/current/"
+    NHS_ENG_FILES = {
         "gpp": "epraccur.zip",
         "dentists": "egdpprac.zip",
         "pharmacies": "edispensary.zip",
@@ -56,7 +49,6 @@ class Config:
 
 
 def clean_air(path: Path, col: "str"):
-    logger.info(f"Cleaning air: {path}:{col}")
     air: pd.DataFrame = pd.read_csv(path, skiprows=5, header=0)
     air = air[air[col] != "MISSING"]
     air[col] = air[col].astype(float)

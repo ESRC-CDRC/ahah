@@ -1,20 +1,17 @@
 import re
 from pathlib import Path
 
-import cudf
 import geopandas as gpd
 import pandas as pd
 
 from ahah.common.utils import Paths
 
 
-def read_dists(
-    dist_files: list[Path], pcs: cudf.DataFrame, ndvi: cudf.DataFrame
-) -> pd.DataFrame:
+def read_dists(dist_files: list[Path], pcs, ndvi) -> pd.DataFrame:
     dfs = [
         pd.read_parquet(file)
-        .rename(columns={"distance": re.split(r"_|\.", file.name)[1]})
-        .drop(columns=["easting", "northing", "index"])
+        .rename(columns={"time_weighted": re.split(r"_|\.", file.name)[0]})
+        .drop(columns=["easting", "northing", "node_id"])
         .reset_index(drop=True)
         for file in dist_files
     ]
@@ -23,19 +20,20 @@ def read_dists(
     for df in dfs[1:]:
         merged_df = pd.merge(merged_df, df, on="postcode", how="outer")
 
-    merged_df["postcode"] = merged_df["postcode"].str.replace_all(" ", "")
+    merged_df["postcode"] = merged_df["postcode"].str.replace(" ", "")
     merged_df = merged_df.merge(pcs, on="postcode", how="outer")
     merged_df = merged_df.merge(ndvi, on="postcode", how="outer")
     return merged_df.drop(columns=["postcode"]).groupby("LSOA21CD").median()
 
 
 if __name__ == "__main__":
-    dist_files = list(Path(Paths.OUT).glob("distances_*.parquet"))
+    dist_files = list(Path(Paths.OUT).glob("*_distances.parquet"))
 
-    pcs = pd.read_csv("./data/raw/onspd/ONSPD_FEB_2024.csv")[
-        ["PCD", "OSNRTH1M", "OSEAST1M"]
-    ].rename(columns={"PCD": "postcode", "OSNRTH1M": "northing", "OSEAST1M": "easting"})
-    pcs["postcode"] = pcs["postcode"].str.replace_all(" ", "")
+    pcs = pd.read_csv(
+        "./data/raw/onspd/ONSPD_FEB_2024.csv",
+        usecols=["PCD", "OSNRTH1M", "OSEAST1M"],  # type: ignore
+    ).rename(columns={"PCD": "postcode", "OSNRTH1M": "northing", "OSEAST1M": "easting"})
+    pcs["postcode"] = pcs["postcode"].str.replace(" ", "")
     pcs = gpd.GeoDataFrame(
         pcs,
         geometry=gpd.points_from_xy(pcs["easting"], pcs["northing"]),
@@ -55,9 +53,10 @@ if __name__ == "__main__":
     pcs[pcs["LSOA21CD"] == "E01000177"]
 
     ndvi = pd.read_csv(
-        Paths.RAW / "ndvi" / "spatia_orbit_postcode_V1_210422.csv"
-    ).rename(columns={"PCDS": "postcode", "NDVI_MEDIAN": "gpas"})[["postcode", "gpas"]]
-    ndvi["postcode"] = ndvi["postcode"].str.replace_all(" ", "")
+        Paths.RAW / "ndvi" / "spatia_orbit_postcode_V1_210422.csv",
+        usecols=["PCDS", "NDVI_MEDIAN"],  # type: ignore
+    ).rename(columns={"PCDS": "postcode", "NDVI_MEDIAN": "gpas"})
+    ndvi["postcode"] = ndvi["postcode"].str.replace(" ", "")
 
     dists = read_dists(dist_files, pcs, ndvi)
     air = pd.read_csv(Paths.OUT / "air" / "AIR-LSOA21CD.csv")

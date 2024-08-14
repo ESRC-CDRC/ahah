@@ -15,7 +15,7 @@ from ahah.common.utils import Config, Paths
 
 
 def _read_zip_from_url(filename: str) -> BytesIO:
-    r = urllib.request.urlopen(Config.NHS_URL + filename).read()
+    r = urllib.request.urlopen(Config.NHS_ENG_URL + filename).read()
     file = ZipFile(BytesIO(r))
     return file.open(f"{Path(filename).stem}.csv")
 
@@ -132,7 +132,7 @@ def _welsh_hospitals():
 def process_hospitals(postcodes):
     eng_csv_path = Paths.RAW / "nhs" / "hospitals_england.csv"
     if not eng_csv_path.exists():
-        eng_csv = _read_zip_from_url(Config.NHS_FILES["hospitals"])
+        eng_csv = _read_zip_from_url(Config.NHS_ENG_FILES["hospitals"])
         (
             pl.read_csv(eng_csv, has_header=False)
             .select(["column_1", "column_10", "column_12"])
@@ -167,7 +167,7 @@ def process_hospitals(postcodes):
 def process_gpp(postcodes):
     eng_csv_path = Paths.RAW / "nhs" / "gpp_england.csv"
     if not eng_csv_path.exists():
-        eng_csv = _read_zip_from_url(Config.NHS_FILES["gpp"])
+        eng_csv = _read_zip_from_url(Config.NHS_ENG_FILES["gpp"])
         (
             pl.read_csv(eng_csv, has_header=False)
             .select(["column_1", "column_10", "column_12"])
@@ -200,7 +200,7 @@ def process_gpp(postcodes):
 def process_dentists(postcodes):
     eng_csv_path = Paths.RAW / "nhs" / "dentists_england.csv"
     if not eng_csv_path.exists():
-        eng_csv = _read_zip_from_url(Config.NHS_FILES["dentists"])
+        eng_csv = _read_zip_from_url(Config.NHS_ENG_FILES["dentists"])
         (
             pl.read_csv(eng_csv, has_header=False)
             .select(["column_1", "column_10", "column_12"])
@@ -233,7 +233,7 @@ def process_dentists(postcodes):
 def process_pharmacies(postcodes):
     eng_csv_path = Paths.RAW / "nhs" / "pharmacies_england.csv"
     if not eng_csv_path.exists():
-        eng_csv = _read_zip_from_url(Config.NHS_FILES["pharmacies"])
+        eng_csv = _read_zip_from_url(Config.NHS_ENG_FILES["pharmacies"])
         eng = (
             pl.read_csv(eng_csv, has_header=False)
             .select(["column_1", "column_10", "column_12"])
@@ -292,8 +292,6 @@ def process_bluespace():
         .rename(columns={"x": "easting", "y": "northing"})
     )
     bs.to_parquet(Paths.PROCESSED / "bluespace.parquet", index=False)
-
-
 
 
 def process_ldc(postcodes):
