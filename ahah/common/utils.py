@@ -49,7 +49,7 @@ class Config:
 
 
 def clean_air(path: Path, col: "str"):
-    air: pd.DataFrame = pd.read_csv(path, skiprows=5, header=0)
+    air = pd.read_csv(path, skiprows=5, header=0)
     air = air[air[col] != "MISSING"]
     air[col] = air[col].astype(float)
     return air
