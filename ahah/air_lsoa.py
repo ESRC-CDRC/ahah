@@ -4,7 +4,6 @@ import pandas as pd
 from scipy.interpolate import griddata
 from shapely.geometry import Polygon
 
-from ahah.common.logger import logger
 from ahah.common.utils import Paths, clean_air
 
 GRID_SIZE = 1000
@@ -25,7 +24,6 @@ def create_polygon(x: float, y: float, grid_size: int):
 def interpolate_air(
     air: pd.DataFrame, col: str, lsoa: gpd.GeoDataFrame, grid_size: int
 ):
-    logger.debug(f"Interpolating air: {col}")
     grid_x, grid_y = np.mgrid[0 : max(air.x) : grid_size, 0 : max(air.y) : grid_size]
     grid_z = griddata(
         points=air[["x", "y"]].astype("int").to_numpy(),
@@ -49,8 +47,6 @@ def interpolate_air(
 
 
 if __name__ == "__main__":
-    logger.info("Starting air quality processing...")
-
     lsoa = gpd.read_file("./data/raw/gov/LSOA2021/LSOA_2021_EW_BFC_V8.shp")[
         ["LSOA21CD", "geometry"]
     ]
@@ -65,7 +61,6 @@ if __name__ == "__main__":
     so = interpolate_air(air=so, col="so22022", lsoa=lsoa, grid_size=GRID_SIZE)
     pm = interpolate_air(air=pm, col="pm102022g", lsoa=lsoa, grid_size=GRID_SIZE)
 
-    logger.debug(f"Saving air dataframe to {Paths.OUT / 'air' / 'AIR-LSOA21CD.csv'}")
     air_dfs = [pd.DataFrame(df) for df in [no, so, pm]]
 
     lsoa_air = lsoa.set_index("LSOA21CD").join(air_dfs).reset_index()
