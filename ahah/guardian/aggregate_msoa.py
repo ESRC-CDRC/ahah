@@ -1,6 +1,5 @@
 import re
 from pathlib import Path
-from typing import Generator
 
 import cudf
 import geopandas as gpd
