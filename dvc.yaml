@@ -59,9 +59,9 @@ stages:
     deps:
       - ahah/air_lsoa.py
 
-      - data/raw/air/mapno2022.csv
+      - data/raw/air/mapno22022.csv
       - data/raw/air/mappm102022g.csv
-      - data/raw/air/mapso2022.csv
+      - data/raw/air/mapso22022.csv
     outs:
       - data/out/air/AIR-LSOA21CD.csv
   aggregate:
