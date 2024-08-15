@@ -2,7 +2,7 @@
 
 # Access to Healthy Assets & Hazards (AHAH)
 
-**GPU accelerated road network routing between postcodes and health related POIs**
+**Road network routing between postcodes and health related POIs using NetworkX**
 
 <a href="https://www.python.org"><img alt="Python" src="https://img.shields.io/badge/python%20-%2314354C.svg?&style=for-the-badge&logo=python&logoColor=white"/></a>
 <a href="https://rapids.ai/"><img alt="RAPIDS" src="https://img.shields.io/badge/-rapids.ai-blueviolet?style=for-the-badge"></a>  
@@ -34,11 +34,9 @@ This project identifies the time-weighted distance required to travel by road be
 
 Access is defined through the average time-weighted road network distance for each postcode within each LSOA to the nearest point of interest of a particular type. For this, the road highways network and road speed estimates provided through [Ordnance Survey](https://www.ordnancesurvey.co.uk/business-government/products/open-map-roads) was used, alongside the [OWNS Postcode Directory for May 2020](https://data.gov.uk/dataset/06803af0-6054-410a-822a-f7ab30bcd8b1/ons-postcode-directory-may-2020), which gives centroids for every postcode in the country.
 
-This is a computationally intense calculation, with the total road network used having 3,816,897 edges, and 3,215,522 nodes. Access to each nearest health related POI was calculated using the _Single Source Shortest Path_ algorithm, for all 1,659,451 postcodes in Great Britain.
+This is a computationally intense calculation, with the total road network used having ~3.8 million edges, and \~3.2million nodes. Access to each nearest health related POI was calculated using the _Multi Source Shortest Path_ algorithm, for all ~1.7 million postcodes in Great Britain.
 
-This calculation was made possible through the GPU accelerated Python library `cugraph`, part of the [NVIDIA RAPIDS ecosystem](https://rapids.ai), allowing the computation to be highly parallel, taking minutes, rather than days.
-
-## Project layout
+# Project layout
 
 ```bash
 ahah
