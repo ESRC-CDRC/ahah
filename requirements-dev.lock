@@ -15,6 +15,10 @@ asttokens==2.4.1
 certifi==2024.7.4
     # via pyogrio
     # via pyproj
+contourpy==1.2.1
+    # via matplotlib
+cycler==0.12.1
+    # via matplotlib
 decorator==5.1.1
     # via ipdb
     # via ipython
@@ -22,6 +26,8 @@ exceptiongroup==1.2.2
     # via ipython
 executing==2.0.1
     # via stack-data
+fonttools==4.53.1
+    # via matplotlib
 geopandas==1.0.1
     # via ahah
 ipdb==0.13.13
@@ -29,12 +35,18 @@ ipython==8.26.0
     # via ipdb
 jedi==0.19.1
     # via ipython
+kiwisolver==1.4.5
+    # via matplotlib
+matplotlib==3.9.2
+    # via ahah
 matplotlib-inline==0.1.7
     # via ipython
 networkx==3.3
     # via ukroutes
 numpy==2.0.1
+    # via contourpy
     # via geopandas
+    # via matplotlib
     # via pandas
     # via pyarrow
     # via pyogrio
@@ -42,6 +54,7 @@ numpy==2.0.1
     # via shapely
 packaging==24.1
     # via geopandas
+    # via matplotlib
     # via pyogrio
 pandas==2.2.2
     # via geopandas
@@ -50,6 +63,10 @@ parso==0.8.4
     # via jedi
 pexpect==4.9.0
     # via ipython
+pillow==10.4.0
+    # via matplotlib
+polars==1.4.1
+    # via ahah
 prompt-toolkit==3.0.47
     # via ipython
 ptyprocess==0.7.0
@@ -62,9 +79,18 @@ pygments==2.18.0
     # via ipython
 pyogrio==0.9.0
     # via geopandas
+pyparsing==3.1.2
+    # via matplotlib
 pyproj==3.6.1
     # via geopandas
+pyqt6==6.7.1
+    # via ahah
+pyqt6-qt6==6.7.2
+    # via pyqt6
+pyqt6-sip==13.8.0
+    # via pyqt6
 python-dateutil==2.9.0.post0
+    # via matplotlib
     # via pandas
 pytz==2024.1
     # via pandas

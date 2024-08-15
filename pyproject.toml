@@ -8,6 +8,9 @@ authors = [
 dependencies = [
     "ukroutes @ git+https://github.com/cjber/ukroutes",
     "geopandas>=1.0.1",
+    "polars>=1.4.1",
+    "matplotlib>=3.9.2",
+    "pyqt6>=6.7.1",
 ]
 readme = "README.md"
 requires-python = ">= 3.10"
