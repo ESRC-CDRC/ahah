@@ -100,7 +100,7 @@ def process(idx, ahv: str):
 
 
 if __name__ == "__main__":
-    v4 = pd.read_csv("./data/out/ahah/2024-08-14_AHAH-V4-LSOA21CD.csv")
+    v4 = pd.read_csv("./data/out/ahah/AHAH-V4-LSOA21CD.csv")
     v4 = v4.rename(
         columns={
             "gpp": "gp",

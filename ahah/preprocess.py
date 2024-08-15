@@ -2,6 +2,7 @@ import json
 import urllib.request
 from io import BytesIO
 from pathlib import Path
+from typing import IO
 from zipfile import ZipFile
 
 import geopandas as gpd
@@ -9,13 +10,12 @@ import pandas as pd
 import polars as pl
 from pyproj import Transformer
 from shapely.geometry import MultiPolygon, Polygon
+from ukroutes.oproad.utils import process_oproad
 
 from ahah.common.utils import Config, Paths
 
-# from ukroutes.oproad.utils import process_oproad
 
-
-def _read_zip_from_url(filename: str) -> BytesIO:
+def _read_zip_from_url(filename: str) -> IO[bytes]:
     r = urllib.request.urlopen(Config.NHS_ENG_URL + filename).read()
     file = ZipFile(BytesIO(r))
     return file.open(f"{Path(filename).stem}.csv")
@@ -323,7 +323,7 @@ def main():
     process_bluespace()
     process_ldc(postcodes)
 
-    # _ = process_oproad(outdir=Paths.PROCESSED / "oproad")
+    _ = process_oproad(save=True)
 
 
 if __name__ == "__main__":
