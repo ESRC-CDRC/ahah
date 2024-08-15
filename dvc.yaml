@@ -2,10 +2,13 @@ stages:
   preprocess:
     cmd: python -m ahah.preprocess
     deps:
+      - ahah/preprocess.py
+
       - data/raw/nhs
       - data/raw/onspd
       - data/raw/oproad
       - data/raw/osm
+      - data/raw/ldc
     outs:
       - data/processed/onspd/postcodes.parquet
       - data/processed/oproad/edges.parquet
@@ -15,21 +18,83 @@ stages:
       - data/processed/gpp.parquet
       - data/processed/hospitals.parquet
       - data/processed/pharmacies.parquet
+      - data/processed/fastfood.parquet
+      - data/processed/gambling.parquet
+      - data/processed/leisure.parquet
+      - data/processed/pubs.parquet
+      - data/processed/tobacconists.parquet
 
   routing:
     cmd: python -m ahah.routing
     deps:
-      - data/processed
+      - ahah/routing.py
+
+      - data/processed/onspd/postcodes.parquet
+      - data/processed/oproad/edges.parquet
+      - data/processed/oproad/nodes.parquet
+      - data/processed/bluespace.parquet
+      - data/processed/dentists.parquet
+      - data/processed/gpp.parquet
+      - data/processed/hospitals.parquet
+      - data/processed/pharmacies.parquet
+      - data/processed/fastfood.parquet
+      - data/processed/gambling.parquet
+      - data/processed/leisure.parquet
+      - data/processed/pubs.parquet
+      - data/processed/tobacconists.parquet
     outs:
-      - data/out/distances_bluespace.parquet
-      - data/out/distances_dentists.parquet
-      - data/out/distances_gpp.parquet
-      - data/out/distances_hospitals.parquet
-      - data/out/distances_pharmacies.parquet
+      - data/out/bluespace_distances.parquet
+      - data/out/dentists_distances.parquet
+      - data/out/gpp_distances.parquet
+      - data/out/hospitals_distances.parquet
+      - data/out/pharmacies_distances.parquet
+      - data/out/fastfood_distances.parquet
+      - data/out/gambling_distances.parquet
+      - data/out/leisure_distances.parquet
+      - data/out/pubs_distances.parquet
+      - data/out/tobacconists_distances.parquet
 
   air:
-    cmd: python -m ahah.air
+    cmd: python -m ahah.air_lsoa
     deps:
-      - data/raw/air
+      - ahah/air_lsoa.py
+
+      - data/raw/air/mapno2022.csv
+      - data/raw/air/mappm102022g.csv
+      - data/raw/air/mapso2022.csv
     outs:
-      - data/out/air/msoa-2021-air.csv
+      - data/out/air/AIR-LSOA21CD.csv
+  aggregate:
+    cmd: python -m ahah.aggregate_lsoa
+    deps:
+      - ahah/aggregate_lsoa.py
+
+      - data/processed/onspd/postcodes.parquet
+      - data/processed/oproad/edges.parquet
+      - data/processed/oproad/nodes.parquet
+      - data/processed/bluespace.parquet
+      - data/processed/dentists.parquet
+      - data/processed/gpp.parquet
+      - data/processed/hospitals.parquet
+      - data/processed/pharmacies.parquet
+      - data/processed/fastfood.parquet
+      - data/processed/gambling.parquet
+      - data/processed/leisure.parquet
+      - data/processed/pubs.parquet
+      - data/processed/tobacconists.parquet
+      - data/out/air/AIR-LSOA21CD.csv
+      - data/raw/gov/LSOA2021/LSOA_2021_EW_BFC_V8.shp
+      - data/raw/gov/SG_DataZone/SG_DataZone_Bdry_2011.shp
+      - data/raw/ndvi/spatia_orbit_postcode_V1_210422.csv
+    outs:
+      - data/out/ahah/AHAH-V4-LSOA21CD.csv
+
+  index:
+    cmd: python -m ahah.create_index
+    deps:
+      - ahah/create_index.py
+
+      - data/out/ahah/AHAH-V4-LSOA21CD.csv
+
+    outs:
+      - "data/out/ahah/AHAH_V4.csv"
