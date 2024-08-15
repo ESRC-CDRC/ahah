@@ -9,7 +9,10 @@ edges = pd.read_parquet(Paths.PROCESSED / "oproad" / "edges.parquet")
 
 pq_files = list(Paths.PROCESSED.glob("*.parquet"))
 for file in tqdm(pq_files):
+    outfile = Paths.OUT / f"{file.stem}_distances.parquet"
+    if outfile.exists():
+        continue
     source = pd.read_parquet(file).dropna(subset=["easting", "northing"])
     route = Route(source=source, target=postcodes, nodes=nodes, edges=edges)
     distances = route.route()
-    distances.to_parquet(Paths.OUT / f"{file.stem}_distances.parquet")
+    distances.to_parquet(outfile)

@@ -100,7 +100,7 @@ def process(idx, ahv: str):
 
 
 if __name__ == "__main__":
-    v4 = pd.read_csv("./data/out/AHAH-V4-LSOA21CD.csv")
+    v4 = pd.read_csv("./data/out/ahah/2024-08-14_AHAH-V4-LSOA21CD.csv")
     v4 = v4.rename(
         columns={
             "gpp": "gp",
@@ -124,4 +124,4 @@ if __name__ == "__main__":
     v4 = process(v4, ahv="ah4")
     v4 = v4[[c for c in v4.columns if not c.endswith("expd")]]
 
-    v4.to_csv(Paths.OUT / "AHAH_V4.csv", index=False)
+    v4.to_csv(Paths.OUT / "ahah" / "AHAH_V4.csv", index=False)

@@ -1,10 +1,13 @@
 import re
+from datetime import datetime
 from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
 
 from ahah.common.utils import Paths
+
+current_date = datetime.now().strftime("%Y-%m-%d")
 
 
 def read_dists(dist_files: list[Path], pcs, ndvi) -> pd.DataFrame:
@@ -61,4 +64,6 @@ if __name__ == "__main__":
     dists = read_dists(dist_files, pcs, ndvi)
     air = pd.read_csv(Paths.OUT / "air" / "AIR-LSOA21CD.csv")
     dists = dists.merge(air, on="LSOA21CD", how="left")
-    dists.to_csv(Paths.OUT / "AHAH-V4-LSOA21CD.csv", index=False)
+    dists.to_csv(
+        Paths.OUT / "ahah" / f"{current_date}_AHAH-V4-LSOA21CD.csv", index=False
+    )

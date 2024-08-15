@@ -9,9 +9,10 @@ import pandas as pd
 import polars as pl
 from pyproj import Transformer
 from shapely.geometry import MultiPolygon, Polygon
-from ukroutes.oproad.utils import process_oproad
 
 from ahah.common.utils import Config, Paths
+
+# from ukroutes.oproad.utils import process_oproad
 
 
 def _read_zip_from_url(filename: str) -> BytesIO:
@@ -280,12 +281,12 @@ def process_bluespace():
         gpd.read_parquet(Paths.RAW / "osm" / "gb-coast.parquet")
         .to_crs(27700)
         .get_coordinates()
-        .round(-2)
+        .round()
     )
     bs = bluespace[
         (bluespace.geometry.apply(lambda x: isinstance(x, (MultiPolygon, Polygon))))
     ].to_crs(27700)
-    bs = bs[bs.area > 10_000].get_coordinates().round(-2)
+    bs = bs[bs.area > 10_000].get_coordinates().round()
     bs = (
         pd.concat([coast, bs])
         .drop_duplicates()
@@ -322,7 +323,7 @@ def main():
     process_bluespace()
     process_ldc(postcodes)
 
-    _ = process_oproad(outdir=Paths.PROCESSED / "oproad")
+    # _ = process_oproad(outdir=Paths.PROCESSED / "oproad")
 
 
 if __name__ == "__main__":
