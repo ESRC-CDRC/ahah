@@ -9,7 +9,6 @@ debug.log
 cufile.log
 nohup.out
 
-reports/
 scripts/
 
 .old/
