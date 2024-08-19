@@ -4,7 +4,6 @@ import pandas as pd
 from scipy.interpolate import griddata
 from shapely.geometry import Polygon
 
-from ahah.common.logger import logger
 from ahah.common.utils import Paths, clean_air
 
 GRID_SIZE = 1000
@@ -25,7 +24,6 @@ def create_polygon(x: float, y: float, grid_size: int):
 def interpolate_air(
     air: pd.DataFrame, col: str, msoa: gpd.GeoDataFrame, grid_size: int
 ):
-    logger.debug(f"Interpolating air: {col}")
     grid_x, grid_y = np.mgrid[0 : max(air.x) : grid_size, 0 : max(air.y) : grid_size]
     grid_z = griddata(
         points=air[["x", "y"]].astype("int").to_numpy(),
@@ -49,13 +47,12 @@ def interpolate_air(
 
 
 if __name__ == "__main__":
-    logger.info("Starting air quality processing...")
 
     msoa = gpd.read_file("./data/raw/gov/msoa-2011-bfc.gpkg")[["MSOA11CD", "geometry"]]
     sgiz = gpd.read_file("./data/raw/gov/SG_IntermediateZone_Bdry_2011.shp")[
         ["InterZone", "geometry"]
     ].rename(columns={"InterZone": "MSOA11CD"})
-    msoa = pd.concat([msoa, sgiz])
+    msoa: gpd.GeoDataFrame = pd.concat([msoa, sgiz])
     no = clean_air(path=Paths.RAW / "air/mapno22022.csv", col="no22022")
     so = clean_air(path=Paths.RAW / "air/mapso22022.csv", col="so22022")
     pm = clean_air(path=Paths.RAW / "air/mappm102022g.csv", col="pm102022g")
@@ -63,7 +60,6 @@ if __name__ == "__main__":
     so = interpolate_air(air=so, col="so22022", msoa=msoa, grid_size=GRID_SIZE)
     pm = interpolate_air(air=pm, col="pm102022g", msoa=msoa, grid_size=GRID_SIZE)
 
-    logger.debug(f"Saving air dataframe to {Paths.OUT / 'msoa-2021-air.csv'}")
     air_dfs = [pd.DataFrame(df) for df in [no, so, pm]]
 
     msoa_air = msoa.set_index("MSOA11CD").join(air_dfs).reset_index()

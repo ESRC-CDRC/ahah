@@ -41,14 +41,25 @@ def _fetch_scot_records(resource_id: int, limit: int = 100) -> pl.DataFrame:
 
 
 def process_postcodes():
-    (
+    postcodes = (
         pl.read_csv(
             Paths.RAW / "onspd" / "ONSPD_FEB_2024.csv",
             columns=["PCD", "OSEAST1M", "OSNRTH1M", "DOTERM", "CTRY"],
         )
         .rename({"PCD": "postcode", "OSEAST1M": "easting", "OSNRTH1M": "northing"})
         .with_columns(pl.col("postcode").str.replace_all(" ", ""))
-        .filter(
+    )
+
+    (
+        postcodes.filter(
+            pl.col("CTRY").is_in(["N92000002", "L93000001", "M83000003"]).not_()
+        )
+        .drop(["DOTERM", "CTRY"])
+        .drop_nulls()
+        .write_parquet(Paths.PROCESSED / "onspd" / "all_postcodes.parquet")
+    )
+    (
+        postcodes.filter(
             (pl.col("DOTERM").is_null())
             & (pl.col("CTRY").is_in(["N92000002", "L93000001", "M83000003"]).not_())
         )
@@ -314,14 +325,14 @@ def process_ldc(postcodes):
 
 def main():
     process_postcodes()
-    postcodes = pl.read_parquet(Paths.PROCESSED / "onspd" / "postcodes.parquet")
+    all_postcodes = pl.read_parquet(Paths.PROCESSED / "onspd" / "all_postcodes.parquet")
 
-    process_hospitals(postcodes)
-    process_gpp(postcodes)
-    process_dentists(postcodes)
-    process_pharmacies(postcodes)
+    process_hospitals(all_postcodes)
+    process_gpp(all_postcodes)
+    process_dentists(all_postcodes)
+    process_pharmacies(all_postcodes)
     process_bluespace()
-    process_ldc(postcodes)
+    process_ldc(all_postcodes)
 
     _ = process_oproad(save=True)
 

@@ -1,18 +1,17 @@
 import re
 from pathlib import Path
 
-import cudf
 import geopandas as gpd
 import pandas as pd
 
 from ahah.common.utils import Paths
 
 
-def read_dists(dist_files: list[Path], pcs: cudf.DataFrame) -> pd.DataFrame:
+def read_dists(dist_files: list[Path], pcs: pd.DataFrame) -> pd.DataFrame:
     dfs = [
         pd.read_parquet(file)
-        .rename(columns={"distance": re.split(r"_|\.", file.name)[1]})
-        .drop(columns=["easting", "northing", "index"])
+        .rename(columns={"time_weighted": re.split(r"_|\.", file.name)[0]})
+        .drop(columns=["easting", "northing", "node_id"])
         .reset_index(drop=True)
         for file in dist_files
     ]
@@ -22,7 +21,7 @@ def read_dists(dist_files: list[Path], pcs: cudf.DataFrame) -> pd.DataFrame:
         merged_df = pd.merge(merged_df, df, on="postcode", how="outer")
 
     return (
-        merged_df.merge(pcs, on="postcode", how="left")
+        merged_df.merge(pcs, on="postcode", how="outer")
         .drop(columns=["postcode"])
         .groupby("MSOA11CD")
         .median()
@@ -30,9 +29,9 @@ def read_dists(dist_files: list[Path], pcs: cudf.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    dist_files = list(Path(Paths.OUT).glob("distances_*.parquet"))
+    dist_files = list(Path(Paths.OUT / "guardian").glob("*_distances.parquet"))
 
-    pcs = pd.read_parquet(Paths.PROCESSED / "onspd" / "postcodes.parquet")
+    pcs = pd.read_parquet("./data/processed/onspd/all_postcodes.parquet")
     pcs = gpd.GeoDataFrame(
         pcs,
         geometry=gpd.points_from_xy(pcs["easting"], pcs["northing"]),
@@ -49,4 +48,4 @@ if __name__ == "__main__":
     dists = read_dists(dist_files, pcs)
     air = pd.read_csv(Paths.OUT / "air" / "AIR-MSOA11CD.csv")
     dists = dists.merge(air, on="MSOA11CD", how="left")
-    dists.to_csv(Paths.OUT / "DRIVETIME-MSOA11CD.csv", index=False)
+    dists.to_csv(Paths.OUT / "guardian" / "DRIVETIME-MSOA11CD.csv", index=False)

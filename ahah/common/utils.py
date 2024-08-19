@@ -48,7 +48,7 @@ class Config:
     }
 
 
-def clean_air(path: Path, col: "str"):
+def clean_air(path: Path, col: "str") -> pd.DataFrame:
     air = pd.read_csv(path, skiprows=5, header=0)
     air = air[air[col] != "MISSING"]
     air[col] = air[col].astype(float)
