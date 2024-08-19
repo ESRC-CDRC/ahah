@@ -115,6 +115,8 @@ exceptiongroup==1.2.2
     # via ipython
 executing==2.0.1
     # via stack-data
+fastexcel==0.11.5
+    # via ahah
 filelock==3.15.4
     # via iterative-telemetry
 flatten-dict==0.4.2
@@ -230,6 +232,7 @@ ptyprocess==0.7.0
 pure-eval==0.2.3
     # via stack-data
 pyarrow==17.0.0
+    # via fastexcel
     # via ukroutes
 pycparser==2.22
     # via cffi

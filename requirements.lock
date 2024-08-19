@@ -106,6 +106,8 @@ dvc-task==0.4.0
     # via dvc
 entrypoints==0.4
     # via gto
+fastexcel==0.11.5
+    # via ahah
 filelock==3.15.4
     # via iterative-telemetry
 flatten-dict==0.4.2
@@ -205,6 +207,7 @@ psutil==6.0.0
     # via dvc
     # via flufl-lock
 pyarrow==17.0.0
+    # via fastexcel
     # via ukroutes
 pycparser==2.22
     # via cffi
