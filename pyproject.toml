@@ -13,9 +13,10 @@ dependencies = [
     "pyqt6>=6.7.1",
     "dvc>=3.53.2",
     "fastexcel>=0.11.5",
+    "marimo>=0.8.0",
 ]
 readme = "README.md"
-requires-python = ">= 3.10"
+requires-python = ">=3.12"
 
 [build-system]
 requires = ["hatchling"]
