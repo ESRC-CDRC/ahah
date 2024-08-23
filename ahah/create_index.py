@@ -101,6 +101,8 @@ def process(idx, ahv: str):
 
 if __name__ == "__main__":
     v4 = pd.read_csv("./data/out/ahah/AHAH-V4-LSOA21CD.csv")
+    ldc = pd.read_csv("./data/processed/2024_08_21_CILLIANBERRAGAN_AHAHV4_LDC.csv")
+    v4 = v4.merge(ldc, on="LSOA21CD")
     v4 = v4.rename(
         columns={
             "gpp": "gp",
@@ -120,7 +122,7 @@ if __name__ == "__main__":
             "so22022": "so2",
             "pm102022g": "pm10",
         }
-    ).fillna(method="ffill")
+    ).ffill()
     v4 = process(v4, ahv="ah4")
     v4 = v4[[c for c in v4.columns if not c.endswith("expd")]]
 

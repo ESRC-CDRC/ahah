@@ -3,7 +3,7 @@ from tqdm import tqdm
 from ukroutes.common.utils import Paths
 from ukroutes.routing import Route
 
-postcodes = pd.read_parquet(Paths.PROCESSED / "onspd" / "postcodes.parquet")
+postcodes = pd.read_parquet(Paths.PROCESSED / "onspd" / "all_postcodes.parquet")
 nodes = pd.read_parquet(Paths.PROCESSED / "oproad" / "nodes.parquet")
 edges = pd.read_parquet(Paths.PROCESSED / "oproad" / "edges.parquet")
 

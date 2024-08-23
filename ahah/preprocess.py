@@ -6,6 +6,7 @@ from typing import IO
 from zipfile import ZipFile
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import polars as pl
 from pyproj import Transformer
@@ -293,6 +294,7 @@ def process_bluespace():
         .to_crs(27700)
         .get_coordinates()
         .round()
+        .reset_index(drop=True)
     )
     bs = bluespace[
         (bluespace.geometry.apply(lambda x: isinstance(x, (MultiPolygon, Polygon))))
@@ -306,21 +308,21 @@ def process_bluespace():
     bs.to_parquet(Paths.PROCESSED / "bluespace.parquet", index=False)
 
 
-def process_ldc(postcodes):
-    ldc = (
-        pl.read_csv(
-            Paths.RAW / "ldc" / "2024_08_09_CILLIANBERRAGAN_CDRC1859_LDC_AHAH4.csv"
-        )
-        .with_columns(pl.col("postcode").str.replace_all(" ", ""))
-        .join(postcodes, on="postcode")
-    )
-
-    for category in ["fastfood", "gambling", "leisure", "pubs", "tobacconists"]:
-        (
-            ldc.filter(pl.col(category) == "*")
-            .select([category, "easting", "northing"])
-            .write_parquet(Paths.PROCESSED / f"{category}.parquet")
-        )
+# def process_ldc(postcodes):
+#     ldc = (
+#         pl.read_csv(
+#             Paths.RAW / "ldc" / "2024_08_09_CILLIANBERRAGAN_CDRC1859_LDC_AHAH4.csv"
+#         )
+#         .with_columns(pl.col("postcode").str.replace_all(" ", ""))
+#         .join(postcodes, on="postcode")
+#     )
+#
+#     for category in ["fastfood", "gambling", "leisure", "pubs", "tobacconists"]:
+#         (
+#             ldc.filter(pl.col(category) == "*")
+#             .select([category, "easting", "northing"])
+#             .write_parquet(Paths.PROCESSED / f"{category}.parquet")
+#         )
 
 
 def main():
@@ -332,7 +334,7 @@ def main():
     process_dentists(all_postcodes)
     process_pharmacies(all_postcodes)
     process_bluespace()
-    process_ldc(all_postcodes)
+    # process_ldc(all_postcodes)
 
     _ = process_oproad(save=True)
 

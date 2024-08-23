@@ -56,4 +56,4 @@ if __name__ == "__main__":
     dists = read_dists(dist_files, pcs, ndvi)
     air = pd.read_csv(Paths.OUT / "air" / "AIR-LSOA21CD.csv")
     dists = dists.merge(air, on="LSOA21CD", how="left")
-    dists.to_csv(Paths.OUT / "ahah" / "AHAH-V4-LSOA21CD.csv")
+    dists.to_csv(Paths.OUT / "ahah" / "AHAH-V4-LSOA21CD.csv", index=False)
