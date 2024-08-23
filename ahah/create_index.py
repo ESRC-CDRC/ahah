@@ -49,8 +49,7 @@ def process(idx, ahv: str):
         idx[high_dist].rank(method="min", ascending=False).astype(int)
     )
 
-    # higher values os gspassive are better (prop of pc that is gs for v3)
-    # (number of near gs in v2)
+    # higher values for gspassive are better
     idx[env_dist_ranked[0]] = (
         idx[env_dist[0]].rank(method="min", ascending=False).astype(int)
     )
@@ -94,8 +93,8 @@ def process(idx, ahv: str):
     idx["r_expd"] = exp_trans(idx[f"{ahv}r_rnk"], idx)
 
     idx[f"{ahv}ahah"] = idx[["r_expd", "h_expd", "g_expd", "e_expd"]].mean(axis=1)
-    idx[f"{ahv}ahah_rn"] = idx[f"{ahv}ahah"].rank(method="min").astype(int)
-    idx[f"{ahv}ahah_pc"] = pd.qcut(idx[f"{ahv}ahah_rn"], 100, labels=False) + 1
+    idx[f"{ahv}ahah_rnk"] = idx[f"{ahv}ahah"].rank(method="min").astype(int)
+    idx[f"{ahv}ahah_pct"] = pd.qcut(idx[f"{ahv}ahah_rnk"], 100, labels=False) + 1
     return idx
 
 

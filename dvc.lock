@@ -5,13 +5,8 @@ stages:
     deps:
     - path: ahah/preprocess.py
       hash: md5
-      md5: 5eaed68dfe91991e4ec6f31a0d329877
-      size: 11986
-    - path: data/raw/ldc
-      hash: md5
-      md5: bad908ca29e1492b1ff80a18641bed21.dir
-      size: 890929
-      nfiles: 1
+      md5: 6c2e2bf813d2f7ded5caa486d1fd14fc
+      size: 12391
     - path: data/raw/nhs
       hash: md5
       md5: 8252688d8d68f4605f84331747e8e51c.dir
@@ -39,28 +34,16 @@ stages:
       size: 39256449
     - path: data/processed/dentists.parquet
       hash: md5
-      md5: ca79e9cae29a2f8de5fffe339333e656
-      size: 76359
-    - path: data/processed/fastfood.parquet
-      hash: md5
-      md5: 4aa4132d42f6580be964f76d9c78837b
-      size: 136130
-    - path: data/processed/gambling.parquet
-      hash: md5
-      md5: 524568900ab920ab60ac60c3a07a61b5
-      size: 26398
+      md5: 17d8558e715cc9d4240f9ce644c28542
+      size: 76793
     - path: data/processed/gpp.parquet
       hash: md5
-      md5: c2560a259b36674c9eca0a1ea6e2b419
-      size: 129551
+      md5: 478520c0ecdb8567c447d393bdbeb23c
+      size: 129733
     - path: data/processed/hospitals.parquet
       hash: md5
-      md5: 2382feb056631955d8cceb6028a285ff
-      size: 261992
-    - path: data/processed/leisure.parquet
-      hash: md5
-      md5: 1aaa1015eaf0a7b8436f38b4af2233c8
-      size: 27799
+      md5: 2eaf3be2d63e955bf4395ac18df3d595
+      size: 269138
     - path: data/processed/onspd/postcodes.parquet
       hash: md5
       md5: 7b9cfe27c843453eb26546fc1a677a7d
@@ -75,16 +58,8 @@ stages:
       size: 53424573
     - path: data/processed/pharmacies.parquet
       hash: md5
-      md5: 89dd1cb6c89b41861c8f3a4346352533
-      size: 98017
-    - path: data/processed/pubs.parquet
-      hash: md5
-      md5: ad5b8a4b560437e68d039960102d745e
-      size: 107464
-    - path: data/processed/tobacconists.parquet
-      hash: md5
-      md5: bb537aead5b9d6c500beb15249bda145
-      size: 15549
+      md5: d40c78225dc5dcc4fe9aa5d8fc032bf9
+      size: 98486
   routing:
     cmd: python -m ahah.routing
     deps:
@@ -214,8 +189,8 @@ stages:
     deps:
     - path: ahah/aggregate_lsoa.py
       hash: md5
-      md5: 85dd6281d86dade626d1819339d29ed3
-      size: 2296
+      md5: 3ef5c0f6cbc69dd8c1e6df596e5d2b5a
+      size: 2052
     - path: data/out/air/AIR-LSOA21CD.csv
       hash: md5
       md5: 98ce32aeff98baeb144c0d77fa28dda1
@@ -226,28 +201,16 @@ stages:
       size: 39256449
     - path: data/processed/dentists.parquet
       hash: md5
-      md5: ca79e9cae29a2f8de5fffe339333e656
-      size: 76359
-    - path: data/processed/fastfood.parquet
-      hash: md5
-      md5: 4aa4132d42f6580be964f76d9c78837b
-      size: 136130
-    - path: data/processed/gambling.parquet
-      hash: md5
-      md5: 524568900ab920ab60ac60c3a07a61b5
-      size: 26398
+      md5: 17d8558e715cc9d4240f9ce644c28542
+      size: 76793
     - path: data/processed/gpp.parquet
       hash: md5
-      md5: c2560a259b36674c9eca0a1ea6e2b419
-      size: 129551
+      md5: 478520c0ecdb8567c447d393bdbeb23c
+      size: 129733
     - path: data/processed/hospitals.parquet
       hash: md5
-      md5: 2382feb056631955d8cceb6028a285ff
-      size: 261992
-    - path: data/processed/leisure.parquet
-      hash: md5
-      md5: 1aaa1015eaf0a7b8436f38b4af2233c8
-      size: 27799
+      md5: 2eaf3be2d63e955bf4395ac18df3d595
+      size: 269138
     - path: data/processed/onspd/postcodes.parquet
       hash: md5
       md5: 7b9cfe27c843453eb26546fc1a677a7d
@@ -262,16 +225,8 @@ stages:
       size: 53424573
     - path: data/processed/pharmacies.parquet
       hash: md5
-      md5: 89dd1cb6c89b41861c8f3a4346352533
-      size: 98017
-    - path: data/processed/pubs.parquet
-      hash: md5
-      md5: ad5b8a4b560437e68d039960102d745e
-      size: 107464
-    - path: data/processed/tobacconists.parquet
-      hash: md5
-      md5: bb537aead5b9d6c500beb15249bda145
-      size: 15549
+      md5: d40c78225dc5dcc4fe9aa5d8fc032bf9
+      size: 98486
     - path: data/raw/gov/LSOA2021/LSOA_2021_EW_BFC_V8.shp
       hash: md5
       md5: e4f6f731ee82cc20134f169c2fd44e7c
@@ -287,21 +242,85 @@ stages:
     outs:
     - path: data/out/ahah/AHAH-V4-LSOA21CD.csv
       hash: md5
-      md5: d72b8939c428fc035dc1aeb9a6133e9f
-      size: 10522291
+      md5: 004aa5d0accad1fb26a38c4cef298e89
+      size: 6567829
   index:
     cmd: python -m ahah.create_index
     deps:
     - path: ahah/create_index.py
       hash: md5
-      md5: 12bacede556e1c5590ab6245e63f0937
-      size: 4898
+      md5: 0f393d4e77c2e5995188ca40e7e106e6
+      size: 5005
     - path: data/out/ahah/AHAH-V4-LSOA21CD.csv
       hash: md5
-      md5: d72b8939c428fc035dc1aeb9a6133e9f
-      size: 10522291
+      md5: 004aa5d0accad1fb26a38c4cef298e89
+      size: 6567829
+    - path: data/processed/2024_08_21_CILLIANBERRAGAN_AHAHV4_LDC.csv
+      hash: md5
+      md5: 1f573ee313035181c0adb63473df88fd
+      size: 4382807
     outs:
     - path: data/out/ahah/AHAH_V4.csv
       hash: md5
-      md5: b51208f94484cc899ee2db48bbc17039
-      size: 21625821
+      md5: 8daea596f79ebe135af6d822bc165706
+      size: 21626818
+  route:
+    cmd: python -m ahah.route
+    deps:
+    - path: ahah/route.py
+      hash: md5
+      md5: c3b06a10d263c28ecf56d91f31ff9409
+      size: 735
+    - path: data/processed/bluespace.parquet
+      hash: md5
+      md5: a9a445e7a98f18ce8c9d3232416b473c
+      size: 39256449
+    - path: data/processed/dentists.parquet
+      hash: md5
+      md5: 17d8558e715cc9d4240f9ce644c28542
+      size: 76793
+    - path: data/processed/gpp.parquet
+      hash: md5
+      md5: 478520c0ecdb8567c447d393bdbeb23c
+      size: 129733
+    - path: data/processed/hospitals.parquet
+      hash: md5
+      md5: 2eaf3be2d63e955bf4395ac18df3d595
+      size: 269138
+    - path: data/processed/onspd/postcodes.parquet
+      hash: md5
+      md5: 7b9cfe27c843453eb26546fc1a677a7d
+      size: 14297810
+    - path: data/processed/oproad/edges.parquet
+      hash: md5
+      md5: 686b6d63f3a16ac8c4f3d34c4e2bfffa
+      size: 41810575
+    - path: data/processed/oproad/nodes.parquet
+      hash: md5
+      md5: f3da631e9e8ff9c490e1ceaab0029714
+      size: 53424573
+    - path: data/processed/pharmacies.parquet
+      hash: md5
+      md5: d40c78225dc5dcc4fe9aa5d8fc032bf9
+      size: 98486
+    outs:
+    - path: data/out/bluespace_distances.parquet
+      hash: md5
+      md5: 19f8c1c78d893f48bd25bc8e6b1a08e4
+      size: 61769523
+    - path: data/out/dentists_distances.parquet
+      hash: md5
+      md5: 92bf6904433e45276ca14d75de55500f
+      size: 61713018
+    - path: data/out/gpp_distances.parquet
+      hash: md5
+      md5: 560625e787ca8cc3ee348feb10383c9d
+      size: 61733310
+    - path: data/out/hospitals_distances.parquet
+      hash: md5
+      md5: e5e967a369a98489f5b105117bbbb76d
+      size: 61633483
+    - path: data/out/pharmacies_distances.parquet
+      hash: md5
+      md5: 2db18755bc9cb7c4fc0df75e9a404f9c
+      size: 61663057
