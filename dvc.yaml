@@ -8,7 +8,6 @@ stages:
       - data/raw/onspd
       - data/raw/oproad
       - data/raw/osm
-      - data/raw/ldc
     outs:
       - data/processed/onspd/postcodes.parquet
       - data/processed/oproad/edges.parquet
@@ -18,16 +17,11 @@ stages:
       - data/processed/gpp.parquet
       - data/processed/hospitals.parquet
       - data/processed/pharmacies.parquet
-      - data/processed/fastfood.parquet
-      - data/processed/gambling.parquet
-      - data/processed/leisure.parquet
-      - data/processed/pubs.parquet
-      - data/processed/tobacconists.parquet
 
-  routing:
-    cmd: python -m ahah.routing
+  route:
+    cmd: python -m ahah.route
     deps:
-      - ahah/routing.py
+      - ahah/route.py
 
       - data/processed/onspd/postcodes.parquet
       - data/processed/oproad/edges.parquet
@@ -37,22 +31,12 @@ stages:
       - data/processed/gpp.parquet
       - data/processed/hospitals.parquet
       - data/processed/pharmacies.parquet
-      - data/processed/fastfood.parquet
-      - data/processed/gambling.parquet
-      - data/processed/leisure.parquet
-      - data/processed/pubs.parquet
-      - data/processed/tobacconists.parquet
     outs:
       - data/out/bluespace_distances.parquet
       - data/out/dentists_distances.parquet
       - data/out/gpp_distances.parquet
       - data/out/hospitals_distances.parquet
       - data/out/pharmacies_distances.parquet
-      - data/out/fastfood_distances.parquet
-      - data/out/gambling_distances.parquet
-      - data/out/leisure_distances.parquet
-      - data/out/pubs_distances.parquet
-      - data/out/tobacconists_distances.parquet
 
   air:
     cmd: python -m ahah.air_lsoa
@@ -77,11 +61,6 @@ stages:
       - data/processed/gpp.parquet
       - data/processed/hospitals.parquet
       - data/processed/pharmacies.parquet
-      - data/processed/fastfood.parquet
-      - data/processed/gambling.parquet
-      - data/processed/leisure.parquet
-      - data/processed/pubs.parquet
-      - data/processed/tobacconists.parquet
       - data/out/air/AIR-LSOA21CD.csv
       - data/raw/gov/LSOA2021/LSOA_2021_EW_BFC_V8.shp
       - data/raw/gov/SG_DataZone/SG_DataZone_Bdry_2011.shp
@@ -95,6 +74,7 @@ stages:
       - ahah/create_index.py
 
       - data/out/ahah/AHAH-V4-LSOA21CD.csv
+      - data/processed/2024_08_21_CILLIANBERRAGAN_AHAHV4_LDC.csv
 
     outs:
       - "data/out/ahah/AHAH_V4.csv"
