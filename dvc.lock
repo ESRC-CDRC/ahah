@@ -5,8 +5,8 @@ stages:
     deps:
     - path: ahah/preprocess.py
       hash: md5
-      md5: 6c2e2bf813d2f7ded5caa486d1fd14fc
-      size: 12391
+      md5: 0da2673a31c0f39ed26e7f2827ee0c53
+      size: 12472
     - path: data/raw/nhs
       hash: md5
       md5: 8252688d8d68f4605f84331747e8e51c.dir
@@ -27,6 +27,11 @@ stages:
       md5: 658dadbe59bcea3e8f9bb0aded000458.dir
       size: 3235852723
       nfiles: 8
+    - path: data/raw/overture
+      hash: md5
+      md5: 9fd36d5d7a8e9d758bb020be831f1a54.dir
+      size: 598391114
+      nfiles: 2
     outs:
     - path: data/processed/bluespace.parquet
       hash: md5
@@ -36,6 +41,10 @@ stages:
       hash: md5
       md5: 17d8558e715cc9d4240f9ce644c28542
       size: 76793
+    - path: data/processed/fastfood_shetlands.parquet
+      hash: md5
+      md5: b770ea3dc7c62ee5cc5157d8b27fe78c
+      size: 7100
     - path: data/processed/gpp.parquet
       hash: md5
       md5: 478520c0ecdb8567c447d393bdbeb23c
@@ -44,6 +53,14 @@ stages:
       hash: md5
       md5: 2eaf3be2d63e955bf4395ac18df3d595
       size: 269138
+    - path: data/processed/leisure_shetlands.parquet
+      hash: md5
+      md5: 6d6348a3a3dc4b749125175a8a4616ab
+      size: 8078
+    - path: data/processed/onspd/all_postcodes.parquet
+      hash: md5
+      md5: ccc91690773e985c397529754cba8672
+      size: 17972399
     - path: data/processed/onspd/postcodes.parquet
       hash: md5
       md5: 7b9cfe27c843453eb26546fc1a677a7d
@@ -60,6 +77,10 @@ stages:
       hash: md5
       md5: d40c78225dc5dcc4fe9aa5d8fc032bf9
       size: 98486
+    - path: data/processed/pubs_shetlands.parquet
+      hash: md5
+      md5: 0d8f3f4a2ae818d1cf59135e63d25bd2
+      size: 7515
   routing:
     cmd: python -m ahah.routing
     deps:
@@ -189,44 +210,52 @@ stages:
     deps:
     - path: ahah/aggregate_lsoa.py
       hash: md5
-      md5: 3ef5c0f6cbc69dd8c1e6df596e5d2b5a
-      size: 2052
+      md5: c50845fd13620e7bbce8c4823a0d727d
+      size: 2950
     - path: data/out/air/AIR-LSOA21CD.csv
       hash: md5
       md5: 98ce32aeff98baeb144c0d77fa28dda1
       size: 2159079
-    - path: data/processed/bluespace.parquet
+    - path: data/out/bluespace_distances.parquet
       hash: md5
-      md5: a9a445e7a98f18ce8c9d3232416b473c
-      size: 39256449
-    - path: data/processed/dentists.parquet
+      md5: 19f8c1c78d893f48bd25bc8e6b1a08e4
+      size: 61769523
+    - path: data/out/dentists_distances.parquet
       hash: md5
-      md5: 17d8558e715cc9d4240f9ce644c28542
-      size: 76793
-    - path: data/processed/gpp.parquet
+      md5: 92bf6904433e45276ca14d75de55500f
+      size: 61713018
+    - path: data/out/fastfood_shetlands_distances.parquet
       hash: md5
-      md5: 478520c0ecdb8567c447d393bdbeb23c
-      size: 129733
-    - path: data/processed/hospitals.parquet
+      md5: 1e51b6acef1bcdebd4c9cd6daebfa697
+      size: 61305358
+    - path: data/out/gpp_distances.parquet
       hash: md5
-      md5: 2eaf3be2d63e955bf4395ac18df3d595
-      size: 269138
-    - path: data/processed/onspd/postcodes.parquet
+      md5: 560625e787ca8cc3ee348feb10383c9d
+      size: 61733310
+    - path: data/out/hospitals_distances.parquet
       hash: md5
-      md5: 7b9cfe27c843453eb26546fc1a677a7d
-      size: 14297810
-    - path: data/processed/oproad/edges.parquet
+      md5: e5e967a369a98489f5b105117bbbb76d
+      size: 61633483
+    - path: data/out/leisure_shetlands_distances.parquet
       hash: md5
-      md5: 686b6d63f3a16ac8c4f3d34c4e2bfffa
-      size: 41810575
-    - path: data/processed/oproad/nodes.parquet
+      md5: 547659997c7b232b4c03e60bd4a99d63
+      size: 61301716
+    - path: data/out/pharmacies_distances.parquet
       hash: md5
-      md5: f3da631e9e8ff9c490e1ceaab0029714
-      size: 53424573
-    - path: data/processed/pharmacies.parquet
+      md5: 2db18755bc9cb7c4fc0df75e9a404f9c
+      size: 61663057
+    - path: data/out/pubs_shetlands_distances.parquet
       hash: md5
-      md5: d40c78225dc5dcc4fe9aa5d8fc032bf9
-      size: 98486
+      md5: 44969459248e522a4c619e549fdf73ce
+      size: 61320187
+    - path: data/processed/2024_08_21_CILLIANBERRAGAN_AHAHV4_LDC.csv
+      hash: md5
+      md5: 1f573ee313035181c0adb63473df88fd
+      size: 4382807
+    - path: data/processed/onspd/all_postcodes.parquet
+      hash: md5
+      md5: ccc91690773e985c397529754cba8672
+      size: 17972399
     - path: data/raw/gov/LSOA2021/LSOA_2021_EW_BFC_V8.shp
       hash: md5
       md5: e4f6f731ee82cc20134f169c2fd44e7c
@@ -242,28 +271,24 @@ stages:
     outs:
     - path: data/out/ahah/AHAH-V4-LSOA21CD.csv
       hash: md5
-      md5: 004aa5d0accad1fb26a38c4cef298e89
-      size: 6567829
+      md5: b50ff8f09f2a9f18396ce41f1794791c
+      size: 10501737
   index:
     cmd: python -m ahah.create_index
     deps:
     - path: ahah/create_index.py
       hash: md5
-      md5: 0f393d4e77c2e5995188ca40e7e106e6
-      size: 5005
+      md5: e623cd51a5acf9cfdc27e50655b0c8f4
+      size: 4824
     - path: data/out/ahah/AHAH-V4-LSOA21CD.csv
       hash: md5
-      md5: 004aa5d0accad1fb26a38c4cef298e89
-      size: 6567829
-    - path: data/processed/2024_08_21_CILLIANBERRAGAN_AHAHV4_LDC.csv
-      hash: md5
-      md5: 1f573ee313035181c0adb63473df88fd
-      size: 4382807
+      md5: b50ff8f09f2a9f18396ce41f1794791c
+      size: 10501737
     outs:
     - path: data/out/ahah/AHAH_V4.csv
       hash: md5
-      md5: 8daea596f79ebe135af6d822bc165706
-      size: 21626818
+      md5: 09e03174c8297cb495edeb88855e3680
+      size: 21623884
   route:
     cmd: python -m ahah.route
     deps:
@@ -279,6 +304,10 @@ stages:
       hash: md5
       md5: 17d8558e715cc9d4240f9ce644c28542
       size: 76793
+    - path: data/processed/fastfood_shetlands.parquet
+      hash: md5
+      md5: b770ea3dc7c62ee5cc5157d8b27fe78c
+      size: 7100
     - path: data/processed/gpp.parquet
       hash: md5
       md5: 478520c0ecdb8567c447d393bdbeb23c
@@ -287,6 +316,14 @@ stages:
       hash: md5
       md5: 2eaf3be2d63e955bf4395ac18df3d595
       size: 269138
+    - path: data/processed/leisure_shetlands.parquet
+      hash: md5
+      md5: 6d6348a3a3dc4b749125175a8a4616ab
+      size: 8078
+    - path: data/processed/onspd/all_postcodes.parquet
+      hash: md5
+      md5: ccc91690773e985c397529754cba8672
+      size: 17972399
     - path: data/processed/onspd/postcodes.parquet
       hash: md5
       md5: 7b9cfe27c843453eb26546fc1a677a7d
@@ -303,6 +340,10 @@ stages:
       hash: md5
       md5: d40c78225dc5dcc4fe9aa5d8fc032bf9
       size: 98486
+    - path: data/processed/pubs_shetlands.parquet
+      hash: md5
+      md5: 0d8f3f4a2ae818d1cf59135e63d25bd2
+      size: 7515
     outs:
     - path: data/out/bluespace_distances.parquet
       hash: md5
@@ -312,6 +353,10 @@ stages:
       hash: md5
       md5: 92bf6904433e45276ca14d75de55500f
       size: 61713018
+    - path: data/out/fastfood_shetlands_distances.parquet
+      hash: md5
+      md5: 1e51b6acef1bcdebd4c9cd6daebfa697
+      size: 61305358
     - path: data/out/gpp_distances.parquet
       hash: md5
       md5: 560625e787ca8cc3ee348feb10383c9d
@@ -320,7 +365,15 @@ stages:
       hash: md5
       md5: e5e967a369a98489f5b105117bbbb76d
       size: 61633483
+    - path: data/out/leisure_shetlands_distances.parquet
+      hash: md5
+      md5: 547659997c7b232b4c03e60bd4a99d63
+      size: 61301716
     - path: data/out/pharmacies_distances.parquet
       hash: md5
       md5: 2db18755bc9cb7c4fc0df75e9a404f9c
       size: 61663057
+    - path: data/out/pubs_shetlands_distances.parquet
+      hash: md5
+      md5: 44969459248e522a4c619e549fdf73ce
+      size: 61320187
