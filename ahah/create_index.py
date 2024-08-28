@@ -100,8 +100,6 @@ def process(idx, ahv: str):
 
 if __name__ == "__main__":
     v4 = pd.read_csv("./data/out/ahah/AHAH-V4-LSOA21CD.csv")
-    ldc = pd.read_csv("./data/processed/2024_08_21_CILLIANBERRAGAN_AHAHV4_LDC.csv")
-    v4 = v4.merge(ldc, on="LSOA21CD")
     v4 = v4.rename(
         columns={
             "gpp": "gp",
