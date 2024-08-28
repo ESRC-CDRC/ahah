@@ -308,21 +308,18 @@ def process_bluespace():
     bs.to_parquet(Paths.PROCESSED / "bluespace.parquet", index=False)
 
 
-# def process_ldc(postcodes):
-#     ldc = (
-#         pl.read_csv(
-#             Paths.RAW / "ldc" / "2024_08_09_CILLIANBERRAGAN_CDRC1859_LDC_AHAH4.csv"
-#         )
-#         .with_columns(pl.col("postcode").str.replace_all(" ", ""))
-#         .join(postcodes, on="postcode")
-#     )
-#
-#     for category in ["fastfood", "gambling", "leisure", "pubs", "tobacconists"]:
-#         (
-#             ldc.filter(pl.col(category) == "*")
-#             .select([category, "easting", "northing"])
-#             .write_parquet(Paths.PROCESSED / f"{category}.parquet")
-#         )
+def process_overture():
+    overture = pl.read_parquet(Paths.RAW / "overture" / "overture.parquet")
+    shetland = overture.filter(pl.col("postcode").str.starts_with("ZE"))
+
+    pubs = shetland.filter(pl.col("main_category").is_in(["pub", "bar"]))
+    fastfood = shetland.filter(pl.col("main_category").is_in(["fast_food_restaurant"]))
+    leisure = shetland.filter(
+        pl.col("main_category").is_in(["gym", "sports_club_and_league"])
+    )
+    pubs.write_parquet(Paths.PROCESSED / "pubs_shetlands.parquet")
+    fastfood.write_parquet(Paths.PROCESSED / "fastfood_shetlands.parquet")
+    leisure.write_parquet(Paths.PROCESSED / "leisure_shetlands.parquet")
 
 
 def main():
@@ -334,7 +331,7 @@ def main():
     process_dentists(all_postcodes)
     process_pharmacies(all_postcodes)
     process_bluespace()
-    # process_ldc(all_postcodes)
+    process_overture()
 
     _ = process_oproad(save=True)
 
