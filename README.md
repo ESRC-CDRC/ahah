@@ -41,10 +41,9 @@ This is a computationally intense calculation, with the total road network used 
 ahah
 ├── aggregate_lsoa.py  # aggregate outputs to LSOA level
 ├── create_index.py  # use aggregates to create index
-├── os_highways.py  # process OS open roads data
 ├── air_lsoa.py  # process air quality data
 ├── preprocess.py  # process all POI data
-├── routing.py  # main routing script
+├── route.py  # main routing script
 └── common
     └── utils.py  # utility functions
 ```
