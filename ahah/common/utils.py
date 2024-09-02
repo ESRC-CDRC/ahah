@@ -50,6 +50,6 @@ class Config:
 
 def clean_air(path: Path, col: "str") -> pd.DataFrame:
     air = pd.read_csv(path, skiprows=5, header=0)
-    air = air[air[col] != "MISSING"]
-    air[col] = air[col].astype(float)
+    air[col] = pd.to_numeric(air[col], errors="coerce")
+    air = air.dropna(subset=[col])
     return air
