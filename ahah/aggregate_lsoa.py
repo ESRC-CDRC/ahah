@@ -45,7 +45,10 @@ def read_dists(
 
 
 def main():
-    dist_files: list[Path] = list(Path(Paths.OUT).glob("*_distances.parquet"))
+    try:
+        dist_files: list[Path] = list(Path(Paths.OUT).glob("*_distances.parquet"))
+    except Exception as e:
+        raise RuntimeError(f"Error reading distance files: {e}")
 
     pcs: pd.DataFrame = pd.read_parquet(
         Paths.PROCESSED / "onspd" / "all_postcodes.parquet"
@@ -75,7 +78,10 @@ def main():
     ldc: pd.DataFrame = pd.read_csv(
         Paths.PROCESSED / "2024_08_21_CILLIANBERRAGAN_AHAHV4_LDC.csv"
     ).set_index("LSOA21CD")
-    dists: pd.DataFrame = read_dists(dist_files, pcs, ndvi, ldc)
+    try:
+        dists: pd.DataFrame = read_dists(dist_files, pcs, ndvi, ldc)
+    except Exception as e:
+        raise RuntimeError(f"Error processing distance data: {e}")
     air: pd.DataFrame = pd.read_csv(Paths.OUT / "air" / "AIR-LSOA21CD.csv")
     dists = dists.merge(air, on="LSOA21CD", how="left")
     dists.to_csv(Paths.OUT / "ahah" / "AHAH-V4-LSOA21CD.csv", index=False)

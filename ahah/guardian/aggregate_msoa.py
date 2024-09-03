@@ -29,7 +29,10 @@ def read_dists(dist_files: list[Path], pcs: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    dist_files = list(Path(Paths.OUT / "guardian").glob("*_distances.parquet"))
+    try:
+        dist_files = list(Path(Paths.OUT / "guardian").glob("*_distances.parquet"))
+    except Exception as e:
+        raise RuntimeError(f"Error reading distance files: {e}")
 
     pcs = pd.read_parquet("./data/processed/onspd/all_postcodes.parquet")
     pcs = gpd.GeoDataFrame(

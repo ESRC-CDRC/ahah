@@ -17,7 +17,10 @@ from ahah.common.utils import Config, Paths
 
 
 def _read_zip_from_url(filename: str) -> IO[bytes]:
-    r = urllib.request.urlopen(Config.NHS_ENG_URL + filename).read()
+    try:
+        r = urllib.request.urlopen(Config.NHS_ENG_URL + filename).read()
+    except Exception as e:
+        raise RuntimeError(f"Error fetching data from URL: {e}")
     file = ZipFile(BytesIO(r))
     return file.open(f"{Path(filename).stem}.csv")
 

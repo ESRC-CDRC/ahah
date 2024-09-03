@@ -100,7 +100,10 @@ def process_museums():
 
 
 def process_greenspace():
-    gs = gpd.read_file(Paths.RAW / "oproad" / "opgrsp_gb.gpkg", layer="access_point")
+    try:
+        gs = gpd.read_file(Paths.RAW / "oproad" / "opgrsp_gb.gpkg", layer="access_point")
+    except Exception as e:
+        raise RuntimeError(f"Error reading greenspace data: {e}")
     gs["easting"], gs["northing"] = gs.geometry.x, gs.geometry.y
     gs = gs.round(-1).drop_duplicates(subset=["easting", "northing"])
     pl.from_pandas(gs[["id", "easting", "northing"]]).write_parquet(

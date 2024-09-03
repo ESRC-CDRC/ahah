@@ -54,10 +54,16 @@ if __name__ == "__main__":
         ["DataZone", "geometry"]
     ].rename(columns={"DataZone": "LSOA21CD"})
     lsoa = pd.concat([lsoa, sgiz])
-    no = clean_air(path=Paths.RAW / "air/mapno22022.csv", col="no22022")
+    try:
+        no = clean_air(path=Paths.RAW / "air/mapno22022.csv", col="no22022")
+    except Exception as e:
+        raise RuntimeError(f"Error cleaning air data for NO2: {e}")
     so = clean_air(path=Paths.RAW / "air/mapso22022.csv", col="so22022")
     pm = clean_air(path=Paths.RAW / "air/mappm102022g.csv", col="pm102022g")
-    no = interpolate_air(air=no, col="no22022", lsoa=lsoa, grid_size=GRID_SIZE)
+    try:
+        no = interpolate_air(air=no, col="no22022", lsoa=lsoa, grid_size=GRID_SIZE)
+    except Exception as e:
+        raise RuntimeError(f"Error interpolating air data for NO2: {e}")
     so = interpolate_air(air=so, col="so22022", lsoa=lsoa, grid_size=GRID_SIZE)
     pm = interpolate_air(air=pm, col="pm102022g", lsoa=lsoa, grid_size=GRID_SIZE)
 

@@ -29,7 +29,7 @@ def interpolate_air(
         points=air[["x", "y"]].astype("int").to_numpy(),
         values=air[col].values,
         xi=(grid_x, grid_y),
-        method="nearest",
+        method="linear",
     )
 
     grid_x = grid_x.flatten()

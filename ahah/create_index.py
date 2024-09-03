@@ -42,7 +42,7 @@ def process(idx, ahv: str):
     air_qual_pct = [f"{asset}_pct" for asset in air_qual]
     high_dist_pct = [f"{asset}_pct" for asset in high_dist]
 
-    idx[low_dist_ranked] = idx[low_dist].rank(method="min").astype(int)
+    idx[low_dist_ranked] = idx[low_dist].rank(method="dense").astype(int)
     idx[env_dist_ranked] = idx[env_dist].rank(method="min").astype(int)
     idx[air_qual_ranked] = idx[air_qual].rank(method="min").astype(int)
     idx[high_dist_ranked] = (

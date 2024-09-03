@@ -48,7 +48,15 @@ class Config:
     }
 
 
-def clean_air(path: Path, col: "str") -> pd.DataFrame:
+def clean_air(path: Path, col: str) -> pd.DataFrame:
+    """
+    Cleans air quality data by reading a CSV file, converting the specified column to numeric,
+    and dropping rows with NaN values in that column.
+    
+    :param path: Path to the CSV file.
+    :param col: Column name to clean.
+    :return: Cleaned DataFrame.
+    """
     air = pd.read_csv(path, skiprows=5, header=0)
     air[col] = pd.to_numeric(air[col], errors="coerce")
     air = air.dropna(subset=[col])
