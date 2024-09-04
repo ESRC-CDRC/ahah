@@ -45,10 +45,7 @@ def read_dists(
 
 
 def main():
-    try:
-        dist_files: list[Path] = list(Path(Paths.OUT).glob("*_distances.parquet"))
-    except Exception as e:
-        raise RuntimeError(f"Error reading distance files: {e}")
+    dist_files: list[Path] = list(Path(Paths.OUT).glob("*_distances.parquet"))
 
     pcs: pd.DataFrame = pd.read_parquet(
         Paths.PROCESSED / "onspd" / "all_postcodes.parquet"
