@@ -1,13 +1,6 @@
 data
-ahah/dsh/data_v4
-temp
-explore
-notebooks
-covid_access
-data_story.Rmd
-debug.log
-cufile.log
-nohup.out
+data/guardian
+ahah/guardin
 
 outputs/
 scripts/
