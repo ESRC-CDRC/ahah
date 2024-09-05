@@ -111,6 +111,10 @@ Please see the [UKRoutes methods](https://github.com/cjber/ukroutes?tab=readme-o
 
 ## AHAH Data Sources
 
-See the [AHAH V2 FigShare Repository](https://figshare.com/articles/online_resource/Access_to_Healthy_Assets_and_Hazards_AHAH_-_Updated_version_2017/8295842/1) for the previous iteration.
-
 See [DATA.md](reports/DATA.md) for current data sources.
+
+## Project Versions
+
+- **AHAH v3**: The code for the previous version can be found under [v3 Release](https://github.com/ESRC-CDRC/ahah/releases/tag/v3).
+- **AHAH v4**: The current codebase represents AHAH v4. This is the latest version, which you can find [here](https://github.com/ESRC-CDRC/ahah/releases/tag/v4).
+
