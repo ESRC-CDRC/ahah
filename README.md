@@ -4,7 +4,7 @@
 
 **Road network routing between postcodes and health related POIs using NetworkX**
 
-<a href="https://dvc.org/"><img alt="DVC" src="https://img.shields.io/badge/data-DVC-lightblue?style=for-the-badge&logo=dvc&logoColor=white"/></a>
+<a href="https://dvc.org/"><img alt="DVC" src="https://img.shields.io/badge/DVC-lightblue?style=for-the-badge&logo=dvc&logoColor=white"/></a>
 <a href="https://www.python.org"><img alt="Python" src="https://img.shields.io/badge/python%20-%2314354C.svg?&style=for-the-badge&logo=python&logoColor=white"/></a>
 <a href="https://black.readthedocs.io/en/stable/"><img alt="Code style: black" src="https://img.shields.io/badge/style-black-000000.svg?style=for-the-badge&logo=black&logoColor=white"/></a>
 
