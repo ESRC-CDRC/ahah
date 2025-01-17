@@ -1,6 +1,6 @@
 # AHAH Version 4 Data Overview
 
-This document provides an overview of the datasets used in the AHAH Version 4 data product. Each dataset is described in terms of its content, source, and production date.
+This document provides an overview of the datasets used in the AHAH Version 4 data product. Each dataset is described in terms of its content, source, and production date. The underlying data for _passive greenspace_, and _retail locations_ are not openly available, but were both produced in 2024.
 
 All data used to produce AHAH Version 4 was the most recent available at the time of production.
 
