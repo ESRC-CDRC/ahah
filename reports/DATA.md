@@ -4,13 +4,13 @@ This document provides a comprehensive overview of the datasets used in the AHAH
 
 All data used to produce AHAH Version 4 was the most recent available at the time of production.
 
-# OS Open Roads
+## OS Open Roads
 
 - **Description**: This dataset provides detailed information about the road network in Great Britain.
 - **Source**: [OS Open Roads](https://api.os.uk/downloads/v1/products/OpenRoads/downloads?area=GB&format=GeoPackage&redirect)
 - **Production Date**: 2024
 
-# Air Quality Data
+## Air Quality Data
 
 - **Description**: Contains air quality data, including pollutant concentrations across the UK.
 - **Sources**:
@@ -20,78 +20,78 @@ All data used to produce AHAH Version 4 was the most recent available at the tim
   - [NO2 Data](https://uk-air.defra.gov.uk/datastore/pcm/mapno22022.csv)
 - **Production Date**: 2022
 
-# Hospitals
+## Hospitals
 
-## England
+### England
 
-- **Description**: Lists NHS organisations and their details in England.
+- **Description**: Provides locations of NHS sites in England.
 - **Source**: [NHS Digital](https://digital.nhs.uk/services/organisation-data-service/export-data-files/csv-downloads/other-nhs-organisations); NHS trust sites
 - **Production Date**: 2024
 
-## Scotland
+### Scotland
 
-- **Description**: Provides hospital codes and details in Scotland.
+- **Description**: Provides locations of hospitals in Scotland.
 - **Source**: [NHS Scotland Open Data](https://www.opendata.nhs.scot/dataset/hospital-codes)
 - **Production Date**: 2024
 
-# GP Practices
+## GP Practices
 
-## England
+### England
 
-- **Description**: Contains data on GP practices in England.
+- **Description**: Provides locations of GP practices in England.
 - **Source**: [NHS Digital](https://digital.nhs.uk/services/organisation-data-service/export-data-files/csv-downloads/gp-and-gp-practice-related-data); GP Practices
 - **Production Date**: 2024
 
-## Scotland
+### Scotland
 
-- **Description**: Provides contact details and list sizes for GP practices in Scotland.
+- **Description**: Provides locations of GP practices in Scotland.
 - **Source**: [NHS Scotland Open Data](https://www.opendata.nhs.scot/dataset/gp-practice-contact-details-and-list-sizes)
 - **Production Date**: 2024
 
-# Dentists
+## Dentists
 
-## England
+### England
 
-- **Description**: Data on dental practices in England.
+- **Description**: Provides locations of dentists in England.
 - **Source**: [NHS Digital](https://digital.nhs.uk/services/organisation-data-service/export-data-files/csv-downloads/miscellaneous); General Dental Practices
 - **Production Date**: 2024
 
-## Scotland
+### Scotland
 
-- **Description**: Information on dental practices and patient registrations in Scotland.
+- **Description**: Provides locations of dentists in Scotland.
 - **Source**: [NHS Scotland Open Data](https://www.opendata.nhs.scot/dataset/dental-practices-and-patient-registrations)
 - **Production Date**: 2024
 
-# Pharmacies
+## Pharmacies
 
-## England
+### England
 
-- **Description**: Data on dispensaries in England.
+- **Description**: Provides locations of pharmacies in England.
 - **Source**: [NHS Digital](https://digital.nhs.uk/services/organisation-data-service/export-data-files/csv-downloads/gp-and-gp-practice-related-data); Dispensaries
 - **Production Date**: 2024
 
-## Scotland
+### Scotland
 
-- **Description**: Contact details for dispensers in Scotland.
+- **Description**: Provides locations of pharmacies in Scotland.
 - **Source**: [NHS Scotland Open Data](https://www.opendata.nhs.scot/dataset/dispenser-location-contact-details)
 - **Production Date**: 2024
 
-## Wales
+### Wales
 
-- **Description**: Pharmacy practice dispensing data in Wales.
+- **Description**: Provides locations of pharmacies in Wales.
 - **Source**: [NHS Wales](https://nwssp.nhs.wales/ourservices/primary-care-services/general-information/data-and-publications/pharmacy-practice-dispensing-data/)
 - **Production Date**: 2023
 
-# Bluespace
+## Bluespace
 
-- **Description**: Geospatial data of water bodies and coastlines in Great Britain.
+- **Description**: Provides OpenStreetMap data for Great Britain.
 - **Source**: [Geofabrik](https://download.geofabrik.de/europe/great-britain.html)
 - **Production Date**: 2024
 
 This data was then processed to keep only bluespace:
 
 ```bash
-#!/bin/bash
+##!/bin/bash
 
 osmium tags-filter great-britain-latest.osm.pbf nwr/natural=water w/waterway=* -o gb-water.osm.pbf
 osmium export gb-water.osm.pbf -o gb-water.geojson
