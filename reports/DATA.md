@@ -1,6 +1,6 @@
 # AHAH Version 4 Data Overview
 
-This document provides an overview of the datasets used in the AHAH Version 4 data product. Each dataset is described in terms of its content, source, and production date. The data has been carefully selected and processed to ensure accuracy and relevance for our analyses.
+This document provides an overview of the datasets used in the AHAH Version 4 data product. Each dataset is described in terms of its content, source, and production date.
 
 All data used to produce AHAH Version 4 was the most recent available at the time of production.
 
